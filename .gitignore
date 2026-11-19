@@ -1,0 +1,32 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ---------- Veritabanı (SQLite) ----------
+*.db
+*.sqlite3
+
+# ---------- Node / Frontend ----------
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# ---------- Ortam değişkenleri (gizli bilgiler) ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Dokümanlar ----------
+*.docx
+
+# ---------- Editör / İşletim sistemi ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
