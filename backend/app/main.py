@@ -9,7 +9,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import models  # noqa: F401  (modeller Base'e kaydolsun diye içe aktarılıyor)
@@ -24,10 +24,15 @@ logging.basicConfig(
 )
 
 
+logger = logging.getLogger("app")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # Uygulama açılırken: eksik tabloları oluştur. Var olan tablolara dokunmaz.
     Base.metadata.create_all(bind=engine)
+    if settings.uses_dev_secrets:
+        logger.warning("Varsayılan geliştirme anahtarları kullanılıyor; üretimde .env ile değiştirin.")
     yield
 
 
@@ -45,6 +50,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",  # tarayıcı dosya türünü tahmin etmesin
+    "X-Frame-Options": "DENY",  # sayfa başka sitede iframe içine gömülemesin (clickjacking)
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.update(SECURITY_HEADERS)
+    if request.url.path.startswith("/api/"):
+        # Token ve kişisel veri içeren API cevapları tarayıcı/proxy önbelleğinde kalmasın.
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
 
 register_exception_handlers(app)
 app.include_router(api_router, prefix="/api/v1")

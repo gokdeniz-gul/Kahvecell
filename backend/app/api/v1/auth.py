@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.deps import DbSession
+from app.core.rate_limit import auth_rate_limit
 from app.schemas.auth import (
     LoginResponse,
     OtpSentResponse,
@@ -12,7 +13,8 @@ from app.schemas.auth import (
 from app.schemas.common import ApiResponse, MessageData, ok
 from app.services.auth_service import AuthService
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+# Tüm auth endpoint'leri IP başına dakikada sınırlı (SMS bombardımanı ve kaba kuvvet denemesine karşı).
+router = APIRouter(prefix="/auth", tags=["Auth"], dependencies=[Depends(auth_rate_limit)])
 
 
 @router.post("/register", summary="1a. Yeni kullanıcı: GSM ile kayıt, SMS kodu gönder")
