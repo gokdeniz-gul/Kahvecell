@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.models import Product, Shop
+from app.models import Product, Shop, ShopPhoto
 from app.schemas.shop import ShopSort
 from app.services.shop_service import ISTANBUL_TZ, ShopService, is_open_at
 from app.utils.geo import bounding_box, haversine_km
@@ -252,3 +252,34 @@ def test_unknown_shop_returns_404(client: TestClient) -> None:
         response = client.get(url)
         assert response.status_code == 404
         assert response.json()["error"]["code"] == "SHOP_NOT_FOUND"
+
+
+# ---------- Fotoğraflar (case 3.3) ----------
+
+
+def test_shop_detail_includes_ordered_photos(client: TestClient, shops: dict[str, Shop], db: Session) -> None:
+    shop = shops["Moda Kavurma Evi"]
+    shop.photos = [
+        ShopPhoto(url="/images/shops/b.jpg", alt_text="İkinci", position=1),
+        ShopPhoto(url="/images/shops/a.jpg", alt_text="Kapak", position=0),
+    ]
+    db.commit()
+
+    photos = client.get(f"{SHOPS_URL}/{shop.id}").json()["data"]["photos"]
+
+    assert photos == [
+        {"url": "/images/shops/a.jpg", "alt_text": "Kapak"},
+        {"url": "/images/shops/b.jpg", "alt_text": "İkinci"},
+    ]
+
+
+def test_seed_adds_photos_to_existing_shops_once(shops: dict[str, Shop], db: Session) -> None:
+    from scripts.seed import SHOP_PHOTOS, ensure_shop_photos
+
+    ensure_shop_photos(db)
+    ensure_shop_photos(db)  # ikinci çalıştırmada tekrar eklememeli
+
+    for name, shop in shops.items():
+        db.refresh(shop)
+        assert len(shop.photos) == len(SHOP_PHOTOS[name])
+        assert shop.image_url == shop.photos[0].url

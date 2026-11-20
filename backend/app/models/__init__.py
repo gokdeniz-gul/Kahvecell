@@ -11,6 +11,7 @@ from app.models.plan import Plan
 from app.models.product import Product
 from app.models.refresh_token import RefreshToken
 from app.models.shop import Shop
+from app.models.shop_photo import ShopPhoto
 from app.models.subscription import Subscription
 from app.models.user import User
 
@@ -23,6 +24,7 @@ __all__ = [
     "Product",
     "RefreshToken",
     "Shop",
+    "ShopPhoto",
     "Subscription",
     "User",
 ]

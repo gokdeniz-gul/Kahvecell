@@ -10,6 +10,7 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.order import Order
     from app.models.product import Product
+    from app.models.shop_photo import ShopPhoto
     from app.models.user import User
 
 
@@ -49,3 +50,6 @@ class Shop(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="shop", cascade="all, delete-orphan"
     )
     orders: Mapped[list["Order"]] = relationship(back_populates="shop")
+    photos: Mapped[list["ShopPhoto"]] = relationship(
+        back_populates="shop", cascade="all, delete-orphan", order_by="ShopPhoto.position"
+    )
