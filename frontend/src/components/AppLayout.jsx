@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Compass, Crown, History, LayoutDashboard, LogOut } from 'lucide-react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Compass, Crown, History, LayoutDashboard, LogOut, UserRound } from 'lucide-react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 import { authApi } from '../api/endpoints'
 import { useAuthStore } from '../store/authStore'
@@ -10,12 +10,13 @@ const CUSTOMER_NAV = [
   { to: '/', label: 'Keşfet', icon: Compass, end: true },
   { to: '/gecmis', label: 'Siparişlerim', icon: History },
   { to: '/abonelik', label: 'Abonelik', icon: Crown },
+  { to: '/profil', label: 'Profil', icon: UserRound },
 ]
 const PANEL_NAV = { to: '/panel', label: 'Panel', icon: LayoutDashboard }
 
 /** Menü role göre değişir: dükkân sahibi sadece panelini, admin hem paneli hem müşteri ekranlarını görür. */
 function navFor(role) {
-  if (role === 'SHOP_OWNER') return [PANEL_NAV]
+  if (role === 'SHOP_OWNER') return [PANEL_NAV, CUSTOMER_NAV.at(-1)] // panel + profil
   if (role === 'ADMIN') return [PANEL_NAV, ...CUSTOMER_NAV]
   return CUSTOMER_NAV
 }
@@ -55,10 +56,12 @@ export default function AppLayout() {
             ))}
           </nav>
           <div className="user-chip">
-            <span className="user-chip__avatar" aria-hidden>
-              {initials}
-            </span>
-            <span className="user-chip__name">{user?.full_name ?? 'Misafir'}</span>
+            <Link to="/profil" className="user-chip__link" title="Profilim">
+              <span className="user-chip__avatar" aria-hidden>
+                {initials}
+              </span>
+              <span className="user-chip__name">{user?.full_name ?? 'Misafir'}</span>
+            </Link>
             <button type="button" className="icon-btn" onClick={handleLogout} title="Çıkış yap" aria-label="Çıkış yap">
               <LogOut size={18} />
             </button>

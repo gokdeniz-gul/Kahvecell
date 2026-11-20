@@ -50,6 +50,31 @@ export const MILKS = [
   { value: 'OAT', label: 'Yulaf' },
   { value: 'ALMOND', label: 'Badem' },
 ]
+export const COFFEE_TYPES = [
+  { value: 'ESPRESSO', label: 'Espresso' },
+  { value: 'LATTE', label: 'Latte' },
+  { value: 'CAPPUCCINO', label: 'Cappuccino' },
+  { value: 'FILTER', label: 'Filtre kahve' },
+  { value: 'TURKISH', label: 'Türk kahvesi' },
+  { value: 'COLD_BREW', label: 'Soğuk kahve' },
+  { value: 'TEA', label: 'Çay' },
+]
+
+export const ALLERGENS = [
+  { value: 'LACTOSE', label: 'Laktoz' },
+  { value: 'GLUTEN', label: 'Gluten' },
+  { value: 'TREE_NUTS', label: 'Kabuklu yemiş (badem, fındık)' },
+  { value: 'SOY', label: 'Soya' },
+]
+
+/** Hangi süt seçimi hangi alerjeni içerir? (Yulaf çapraz bulaşma nedeniyle gluten içerebilir.) */
+const MILK_ALLERGENS = { WHOLE: ['LACTOSE'], ALMOND: ['TREE_NUTS'], OAT: ['GLUTEN'] }
+
+/** Kullanıcının alerjenleriyle çakışan süt seçimi için uyarı listesi döner. */
+export function allergenConflicts(milk, userAllergens = []) {
+  return (MILK_ALLERGENS[milk] ?? []).filter((allergen) => userAllergens.includes(allergen))
+}
+
 export const CATEGORY_LABELS = {
   HOT_COFFEE: 'Sıcak kahveler',
   COLD_COFFEE: 'Soğuk kahveler',

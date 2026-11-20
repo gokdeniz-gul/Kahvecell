@@ -46,6 +46,8 @@ export const router = createBrowserRouter([
               { path: '/abonelik', lazy: page(() => import('./pages/SubscriptionPage')) },
             ],
           },
+          // Profil her rol için açık
+          { path: '/profil', lazy: page(() => import('./pages/ProfilePage')) },
           {
             element: <RequireRole roles={STAFF_ROLES} />,
             children: [{ path: '/panel', lazy: page(() => import('./pages/OwnerPanelPage')) }],

@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Coffee, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, Coffee, Minus, Plus, ShieldAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ordersApi, queryKeys, shopsApi } from '../api/endpoints'
 import { Alert, ErrorState, Loading } from '../components/StateViews'
 import { useSubscription } from '../hooks/useSubscription'
-import { MILKS, SIZES, SUGARS, formatTL, labelOf } from '../lib/format'
+import { ALLERGENS, MILKS, SIZES, SUGARS, allergenConflicts, formatTL, labelOf } from '../lib/format'
+import { useAuthStore } from '../store/authStore'
 
 function Segmented({ options, value, onChange, label }) {
   return (
@@ -34,6 +35,8 @@ export default function OrderPage() {
 
   const shopQuery = useQuery({ queryKey: queryKeys.shop(shopId, {}), queryFn: () => shopsApi.get(shopId) })
   const { data: subscription, isLoading: subLoading } = useSubscription()
+  const userAllergens = useAuthStore((state) => state.user?.preferences?.allergens)
+  const conflicts = allergenConflicts(choice.milk, userAllergens)
 
   const createOrder = useMutation({
     mutationFn: () =>
@@ -147,6 +150,13 @@ export default function OrderPage() {
           {outOfCredits && (
             <Alert variant="warning">
               Bu ayki kahve hakkın bitti. <Link to="/abonelik"><strong>Paketini yükselt →</strong></Link>
+            </Alert>
+          )}
+          {conflicts.length > 0 && (
+            <Alert variant="warning" icon={ShieldAlert}>
+              <strong>Alerjen uyarısı:</strong> {labelOf(MILKS, choice.milk)} süt{' '}
+              {conflicts.map((a) => labelOf(ALLERGENS, a).toLocaleLowerCase('tr-TR')).join(', ')} içerebilir.
+              Profilinde bu alerjen işaretli. Başka bir süt seçebilirsin.
             </Alert>
           )}
           {!shop.is_open_now && <Alert variant="warning">Dükkân şu an kapalı.</Alert>}

@@ -65,3 +65,24 @@ class MilkType(StrEnum):
 class PaymentStatus(StrEnum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+
+
+class CoffeeType(StrEnum):
+    """Profilde seçilebilen kahve tercihleri."""
+
+    ESPRESSO = "ESPRESSO"
+    LATTE = "LATTE"
+    CAPPUCCINO = "CAPPUCCINO"
+    FILTER = "FILTER"
+    TURKISH = "TURKISH"
+    COLD_BREW = "COLD_BREW"
+    TEA = "TEA"
+
+
+class Allergen(StrEnum):
+    """Profilde işaretlenebilen alerjenler (sipariş ekranında süt seçimine göre uyarı verilir)."""
+
+    LACTOSE = "LACTOSE"
+    GLUTEN = "GLUTEN"
+    TREE_NUTS = "TREE_NUTS"
+    SOY = "SOY"

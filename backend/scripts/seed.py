@@ -166,7 +166,7 @@ def seed(db: Session) -> None:
         full_name="Test Müşteri",
         email="musteri@kahvecell.test",
         role=UserRole.CUSTOMER,
-        preferences={"coffee_types": ["latte", "turk_kahvesi"], "allergens": []},
+        preferences={"coffee_types": ["LATTE", "TURKISH"], "allergens": []},
     )
     owner = User(
         phone_number=SHOP_OWNER_PHONE,
