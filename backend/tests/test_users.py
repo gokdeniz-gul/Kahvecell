@@ -59,7 +59,7 @@ def test_complete_profile(client: TestClient) -> None:
         json={
             "full_name": "Ayşe Yılmaz",
             "email": "Ayse@Example.com",
-            "preferences": {"coffee_types": ["latte"], "allergens": ["laktoz"]},
+            "preferences": {"coffee_types": ["LATTE", "TURKISH"], "allergens": ["LACTOSE"]},
         },
     )
 
@@ -67,8 +67,45 @@ def test_complete_profile(client: TestClient) -> None:
     user = response.json()["data"]
     assert user["full_name"] == "Ayşe Yılmaz"
     assert user["email"] == "ayse@example.com"
-    assert user["preferences"] == {"coffee_types": ["latte"], "allergens": ["laktoz"]}
+    assert user["preferences"] == {"coffee_types": ["LATTE", "TURKISH"], "allergens": ["LACTOSE"]}
     assert user["is_profile_complete"] is True
+
+
+def test_preferences_reject_unknown_values(client: TestClient) -> None:
+    tokens = register_and_login(client)
+
+    response = client.patch(
+        ME, headers=auth_header(tokens["access_token"]),
+        json={"preferences": {"coffee_types": ["MOCHA_FRAPPE"], "allergens": []}},
+    )
+
+    assert response.status_code == 422
+
+
+def test_preferences_drop_duplicates(client: TestClient) -> None:
+    tokens = register_and_login(client)
+
+    user = client.patch(
+        ME, headers=auth_header(tokens["access_token"]),
+        json={"preferences": {"coffee_types": ["LATTE", "LATTE"], "allergens": ["SOY", "SOY"]}},
+    ).json()["data"]
+
+    assert user["preferences"] == {"coffee_types": ["LATTE"], "allergens": ["SOY"]}
+
+
+def test_legacy_preference_values_are_still_readable(client: TestClient, db) -> None:
+    """Eski biçimde kaydedilmiş tercihler (küçük harf, bilinmeyen değer) 500 hatası vermemeli."""
+    from app.models import User
+
+    tokens = register_and_login(client)
+    user = db.get(User, tokens["user"]["id"])
+    user.preferences = {"coffee_types": ["latte", "turk_kahvesi"], "allergens": ["laktoz"]}
+    db.commit()
+
+    response = client.get(ME, headers=auth_header(tokens["access_token"]))
+
+    assert response.status_code == 200
+    assert response.json()["data"]["preferences"] == {"coffee_types": ["LATTE"], "allergens": []}
 
 
 def test_profile_rejects_invalid_email(client: TestClient) -> None:

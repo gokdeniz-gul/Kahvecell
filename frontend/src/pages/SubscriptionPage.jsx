@@ -1,116 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CheckCircle2, CreditCard, Crown, Lock, X } from 'lucide-react'
+import { Check, CheckCircle2, CreditCard, Crown } from 'lucide-react'
 import { useState } from 'react'
 
 import { paymentsApi, queryKeys, subscriptionsApi } from '../api/endpoints'
+import PaymentFlow from '../components/PaymentFlow'
 import { Alert, ErrorState, Loading } from '../components/StateViews'
 import { useSubscription } from '../hooks/useSubscription'
 import { formatDate, formatDateTime, formatTL } from '../lib/format'
-import { formatCardNumber, formatExpiry, validateCard } from '../lib/validation'
-
-const TEST_CARDS = [
-  { number: '4242 4242 4242 4242', label: '4242… başarılı' },
-  { number: '4000 0000 0000 0002', label: '4000…0002 reddedilir' },
-]
 
 const PLAN_PERKS = {
   STARTER: ['Ayda 10 kahve', 'Tüm anlaşmalı dükkânlar'],
   PREMIUM: ['Ayda 20 kahve', 'Tüm anlaşmalı dükkânlar', '2 misafir hakkı'],
   UNLIMITED: ['Sınırsız kahve', 'Tüm anlaşmalı dükkânlar', '5 misafir hakkı', 'Öncelikli hazırlanma'],
-}
-
-function PaymentPanel({ checkout, onClose, onPaid }) {
-  const [card, setCard] = useState({ holder: '', number: '', expiry: '', cvc: '' })
-  const [errors, setErrors] = useState({})
-  const update = (field) => (event) => {
-    let value = event.target.value
-    if (field === 'number') value = formatCardNumber(value)
-    if (field === 'expiry') value = formatExpiry(value)
-    if (field === 'cvc') value = value.replace(/\D/g, '').slice(0, 4)
-    setCard((current) => ({ ...current, [field]: value }))
-  }
-
-  const pay = useMutation({
-    mutationFn: async () => {
-      const [month, year] = card.expiry.split('/')
-      const payment = await paymentsApi.process(checkout.plan.plan_type, {
-        card_holder: card.holder.trim(),
-        card_number: card.number,
-        expiry_month: Number(month),
-        expiry_year: 2000 + Number(year),
-        cvc: card.cvc,
-      })
-      // Ödeme başarılı: transaction_id ile aboneliği başlat / yükselt.
-      return checkout.mode === 'start'
-        ? subscriptionsApi.start(checkout.plan.plan_type, payment.transaction_id)
-        : subscriptionsApi.changePlan(checkout.plan.plan_type, payment.transaction_id)
-    },
-    onSuccess: onPaid,
-  })
-
-  function submit(event) {
-    event.preventDefault()
-    const found = validateCard(card)
-    setErrors(found)
-    if (Object.keys(found).length === 0) pay.mutate()
-  }
-
-  const fieldClass = (name) => `input${errors[name] ? ' input--invalid' : ''}`
-
-  return (
-    <form className="card pay-panel stack" onSubmit={submit} noValidate>
-      <div className="row-between">
-        <div>
-          <h2>{checkout.mode === 'start' ? `${checkout.plan.name} paketini al` : `${checkout.plan.name} paketine yükselt`}</h2>
-          <p className="muted">
-            Ödenecek tutar: <strong>{formatTL(checkout.amount)}</strong>
-            {checkout.mode === 'upgrade' && ' (sadece fiyat farkı)'}
-          </p>
-        </div>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Kapat"><X size={20} /></button>
-      </div>
-
-      <div className="field">
-        <label htmlFor="holder">Kart üzerindeki isim</label>
-        <input id="holder" className={fieldClass('holder')} autoComplete="cc-name" value={card.holder} onChange={update('holder')} />
-        {errors.holder && <span className="field__error">{errors.holder}</span>}
-      </div>
-      <div className="field">
-        <label htmlFor="number">Kart numarası</label>
-        <input id="number" className={fieldClass('number')} inputMode="numeric" autoComplete="cc-number"
-          placeholder="0000 0000 0000 0000" value={card.number} onChange={update('number')} />
-        {errors.number && <span className="field__error">{errors.number}</span>}
-        <div className="test-cards">
-          {TEST_CARDS.map((test) => (
-            <button key={test.number} type="button" onClick={() => setCard((c) => ({ ...c, number: test.number }))}>
-              {test.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="card-grid">
-        <div className="field" style={{ gridColumn: 'span 2' }}>
-          <label htmlFor="expiry">Son kullanma</label>
-          <input id="expiry" className={fieldClass('expiry')} inputMode="numeric" autoComplete="cc-exp"
-            placeholder="AA/YY" value={card.expiry} onChange={update('expiry')} />
-          {errors.expiry && <span className="field__error">{errors.expiry}</span>}
-        </div>
-        <div className="field">
-          <label htmlFor="cvc">CVC</label>
-          <input id="cvc" className={fieldClass('cvc')} inputMode="numeric" autoComplete="cc-csc"
-            placeholder="123" value={card.cvc} onChange={update('cvc')} />
-          {errors.cvc && <span className="field__error">{errors.cvc}</span>}
-        </div>
-      </div>
-
-      {pay.isError && <Alert>{pay.error.message}</Alert>}
-
-      <button className="btn btn--primary btn--block" disabled={pay.isPending}>
-        <Lock size={16} /> {pay.isPending ? 'Ödeme alınıyor…' : `${formatTL(checkout.amount)} öde`}
-      </button>
-      <p className="subtle" style={{ textAlign: 'center' }}>Demo ödeme: gerçek para çekilmez, kart numarası saklanmaz.</p>
-    </form>
-  )
 }
 
 function CurrentSubscription({ subscription, onCancel, cancelling }) {
@@ -170,9 +71,12 @@ export default function SubscriptionPage() {
   const subscriptionQuery = useSubscription()
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: paymentsApi.history })
 
-  const refresh = (message) => {
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.subscription })
     queryClient.invalidateQueries({ queryKey: queryKeys.payments })
+  }
+  const refresh = (message) => {
+    invalidate()
     setCheckout(null)
     setNotice(message)
   }
@@ -238,10 +142,10 @@ export default function SubscriptionPage() {
       )}
 
       {checkout && (
-        <PaymentPanel
+        <PaymentFlow
           checkout={checkout}
+          onPaid={invalidate}
           onClose={() => setCheckout(null)}
-          onPaid={() => refresh(checkout.mode === 'start' ? 'Ödeme başarılı, paketin aktif! ☕' : 'Paketin yükseltildi, yeni hakların eklendi.')}
         />
       )}
 

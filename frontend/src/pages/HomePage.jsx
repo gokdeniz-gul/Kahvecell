@@ -4,11 +4,13 @@ import { useDeferredValue, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { queryKeys, shopsApi } from '../api/endpoints'
+import ShopFilters from '../components/ShopFilters'
 import ShopMap from '../components/ShopMap'
 import { EmptyState, ErrorState } from '../components/StateViews'
 import { useSubscription } from '../hooks/useSubscription'
 import { useUserLocation } from '../hooks/useUserLocation'
 import { formatDistance, formatTime } from '../lib/format'
+import { DEFAULT_FILTERS, filtersToParams } from '../lib/shopFilters'
 import { useAuthStore } from '../store/authStore'
 
 function SubscriptionBanner() {
@@ -49,7 +51,7 @@ function ShopCard({ shop, active, onHover }) {
       onMouseEnter={() => onHover(shop.id)}
     >
       <div className="shop-card__thumb">
-        <Coffee size={28} />
+        {shop.image_url ? <img src={shop.image_url} alt="" loading="lazy" /> : <Coffee size={28} />}
       </div>
       <div className="shop-card__body">
         <div className="row-between">
@@ -76,7 +78,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { position, status: locationStatus } = useUserLocation()
   const [search, setSearch] = useState('')
-  const [openNow, setOpenNow] = useState(false)
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [activeShopId, setActiveShopId] = useState(null)
 
   // Her tuşta istek atmamak için arama metni bir adım geriden gelir.
@@ -85,7 +87,7 @@ export default function HomePage() {
     lat: position.lat,
     lng: position.lng,
     ...(deferredSearch && { q: deferredSearch }),
-    ...(openNow && { open_now: true }),
+    ...filtersToParams(filters),
   }
   const shopsQuery = useQuery({
     queryKey: queryKeys.shops(params),
@@ -124,12 +126,8 @@ export default function HomePage() {
               aria-label="Dükkân ara"
             />
           </div>
-          <div className="row wrap">
-            <button type="button" className="toggle" aria-pressed={openNow} onClick={() => setOpenNow(!openNow)}>
-              ● Şu an açık
-            </button>
-            {shopsQuery.data && <span className="subtle">{shopsQuery.data.total} dükkân</span>}
-          </div>
+          <ShopFilters filters={filters} onChange={setFilters} />
+          {shopsQuery.data && <span className="subtle" aria-live="polite">{shopsQuery.data.total} dükkân bulundu</span>}
 
           {(shopsQuery.isLoading || locationStatus === 'loading') &&
             [1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 92 }} />)}

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app import models  # noqa: F401  (tüm tablolar Base'e kaydolsun)
 from app.core.database import SessionLocal
 from app.core.migrations import upgrade_database
-from app.models import Payment, Plan, Product, Shop, Subscription, User
+from app.models import Payment, Plan, Product, Shop, ShopPhoto, Subscription, User
 from app.models.enums import PaymentStatus, PlanType, ProductCategory, UserRole
 
 CUSTOMER_PHONE = "5551234567"
@@ -126,6 +126,61 @@ def tl_to_kurus(tl: float) -> int:
     return round(tl * 100)
 
 
+# Dükkân fotoğrafları: frontend/public/images/shops/ (kaynak ve lisans: CREDITS.md)
+# (dosya adı, ekran okuyucu açıklaması); ilki kapak görselidir.
+SHOP_PHOTOS = {
+    "Moda Kavurma Evi": [
+        ("moda-1.jpg", "Portafiltrede taze öğütülmüş kahve"),
+        ("moda-2.jpg", "Demleme barında filtre kahve ekipmanları"),
+        ("moda-3.jpg", "Ahşap tahta üzerinde kahve tadım seti"),
+    ],
+    "Çarşı Kahvecisi": [
+        ("carsi-1.jpg", "Işıklı CAFE tabelalı dükkân içi"),
+        ("carsi-2.jpg", "Yuvarlak tepside farklı kahveler"),
+        ("carsi-3.jpg", "Fincanda köpüklü sade kahve"),
+    ],
+    "Karaköy Liman Kahve": [
+        ("karakoy-1.jpg", "Geniş, aydınlık kafe salonu"),
+        ("karakoy-2.jpg", "Koyu zeminde latte art'lı fincan"),
+        ("karakoy-3.jpg", "Bardakta soğuk kahve"),
+    ],
+    "Cihangir Köşe": [
+        ("cihangir-1.jpg", "Pencere kenarında masa ve bitkiler"),
+        ("cihangir-2.jpg", "Latte art'lı iki fincan tutan eller"),
+        ("cihangir-3.jpg", "Taş sokakta açık hava kafe masaları"),
+    ],
+    "Teşvikiye Brew Bar": [
+        ("tesvikiye-1.jpg", "Raflı ve sarkıt lambalı kahve barı"),
+        ("tesvikiye-2.jpg", "Yeşil bitkiler arasında latte'ler"),
+        ("tesvikiye-3.jpg", "Ahşap masada buzlu latte"),
+    ],
+    "Kuzguncuk Bostan Kahve": [
+        ("kuzguncuk-1.jpg", "Bitkilerle çevrili bahçe kafe"),
+        ("kuzguncuk-2.jpg", "Ahşap sandalyeli kafe salonu"),
+        ("kuzguncuk-3.jpg", "Fincanda köpüklü sade kahve"),
+    ],
+}
+SHOP_PHOTO_BASE_URL = "/images/shops/"
+
+
+def ensure_shop_photos(db: Session) -> None:
+    """Fotoğrafı olmayan dükkânlara fotoğraflarını ekler (önceden seed edilmiş veritabanları için de)."""
+    added = 0
+    for shop_name, photos in SHOP_PHOTOS.items():
+        shop = db.scalar(select(Shop).where(Shop.name == shop_name))
+        if shop is None or shop.photos:
+            continue
+        shop.photos = [
+            ShopPhoto(url=SHOP_PHOTO_BASE_URL + file, alt_text=alt, position=index)
+            for index, (file, alt) in enumerate(photos)
+        ]
+        shop.image_url = SHOP_PHOTO_BASE_URL + photos[0][0]  # kapak görseli (liste kartları için)
+        added += 1
+    if added:
+        db.commit()
+        print(f"Fotoğraf eklendi      : {added} dükkân")
+
+
 def ensure_admin(db: Session) -> None:
     """Admin hesabı API'den oluşturulamaz (güvenlik); sadece bu betikle eklenir.
     Ana seed'den ayrı tutuldu: seed daha önce çalıştırılmış olsa da admin eklenebilsin."""
@@ -166,7 +221,7 @@ def seed(db: Session) -> None:
         full_name="Test Müşteri",
         email="musteri@kahvecell.test",
         role=UserRole.CUSTOMER,
-        preferences={"coffee_types": ["latte", "turk_kahvesi"], "allergens": []},
+        preferences={"coffee_types": ["LATTE", "TURKISH"], "allergens": []},
     )
     owner = User(
         phone_number=SHOP_OWNER_PHONE,
@@ -224,6 +279,7 @@ def main() -> None:
     upgrade_database()  # sunucu hiç açılmamış olsa da şema hazır olsun
     with SessionLocal() as db:
         seed(db)
+        ensure_shop_photos(db)
 
 
 if __name__ == "__main__":

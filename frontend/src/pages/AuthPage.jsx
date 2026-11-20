@@ -185,7 +185,7 @@ export default function AuthPage({ mode }) {
             <form className="stack" onSubmit={submitProfile} noValidate>
               <div className="stack-sm">
                 <h2>Seni tanıyalım</h2>
-                <p className="muted">Siparişlerinde adın görünecek. E-posta isteğe bağlı.</p>
+                <p className="muted">Siparişlerinde adın görünecek. E-posta isteğe bağlı; kahve tercihlerini ve alerjenlerini daha sonra Profil sayfasından ekleyebilirsin.</p>
               </div>
               <div className="field">
                 <label htmlFor="full_name">Ad soyad</label>

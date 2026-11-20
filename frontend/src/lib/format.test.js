@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MILKS, formatDistance, formatTL, labelOf, normalizePhone } from './format'
+import { MILKS, allergenConflicts, formatDistance, formatTL, labelOf, normalizePhone } from './format'
 
 describe('normalizePhone', () => {
   it.each(['5321234567', '05321234567', '+905321234567', '+90 532 123 45 67', '0532-123-45-67'])(
@@ -23,6 +23,22 @@ describe('formatTL', () => {
 describe('formatDistance', () => {
   it('1 km altını metre olarak gösterir', () => expect(formatDistance(0.6)).toBe('600 m'))
   it('1 km ve üstünü tek ondalıkla gösterir', () => expect(formatDistance(6.62)).toBe('6.6 km'))
+})
+
+describe('allergenConflicts', () => {
+  it('laktoz alerjisi olana tam yağlı süt uyarısı', () => {
+    expect(allergenConflicts('WHOLE', ['LACTOSE'])).toEqual(['LACTOSE'])
+  })
+  it('kabuklu yemiş alerjisi olana badem sütü uyarısı', () => {
+    expect(allergenConflicts('ALMOND', ['TREE_NUTS', 'SOY'])).toEqual(['TREE_NUTS'])
+  })
+  it('laktozsuz süt ve sütsüz seçimde uyarı yok', () => {
+    expect(allergenConflicts('LACTOSE_FREE', ['LACTOSE'])).toEqual([])
+    expect(allergenConflicts('NONE', ['LACTOSE', 'GLUTEN'])).toEqual([])
+  })
+  it('alerjen bilgisi yoksa uyarı yok', () => {
+    expect(allergenConflicts('WHOLE', undefined)).toEqual([])
+  })
 })
 
 describe('labelOf', () => {

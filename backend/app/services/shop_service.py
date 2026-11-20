@@ -17,7 +17,14 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import BadRequestError, NotFoundError
 from app.models import Shop
 from app.repositories.shop_repository import ShopRepository
-from app.schemas.shop import ProductResponse, ShopDetail, ShopListResponse, ShopSort, ShopSummary
+from app.schemas.shop import (
+    ProductResponse,
+    ShopDetail,
+    ShopListResponse,
+    ShopPhotoResponse,
+    ShopSort,
+    ShopSummary,
+)
 from app.utils.geo import bounding_box, haversine_km
 from app.utils.text import normalize_for_search
 
@@ -79,7 +86,12 @@ class ShopService:
         shop = self._get_shop(shop_id)
         distance = haversine_km(lat, lng, shop.latitude, shop.longitude) if has_location else None
         summary = self._to_summary(shop, self.clock().astimezone(ISTANBUL_TZ).time(), distance)
-        return ShopDetail(**summary.model_dump(), phone=shop.phone, menu=self.get_menu(shop_id))
+        return ShopDetail(
+            **summary.model_dump(),
+            phone=shop.phone,
+            photos=[ShopPhotoResponse.model_validate(photo) for photo in shop.photos],
+            menu=self.get_menu(shop_id),
+        )
 
     def get_menu(self, shop_id: str) -> list[ProductResponse]:
         self._get_shop(shop_id)  # dükkân yoksa 404
