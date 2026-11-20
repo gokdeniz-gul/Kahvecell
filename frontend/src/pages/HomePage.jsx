@@ -49,7 +49,7 @@ function ShopCard({ shop, active, onHover }) {
       onMouseEnter={() => onHover(shop.id)}
     >
       <div className="shop-card__thumb">
-        <Coffee size={28} />
+        {shop.image_url ? <img src={shop.image_url} alt="" loading="lazy" /> : <Coffee size={28} />}
       </div>
       <div className="shop-card__body">
         <div className="row-between">

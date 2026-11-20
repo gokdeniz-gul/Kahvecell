@@ -3,6 +3,7 @@ import { ArrowLeft, Clock, MapPin, Phone, Star } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 
 import { queryKeys, shopsApi } from '../api/endpoints'
+import PhotoGallery from '../components/PhotoGallery'
 import ShopMap from '../components/ShopMap'
 import { Alert, ErrorState, Loading } from '../components/StateViews'
 import { useSubscription } from '../hooks/useSubscription'
@@ -48,6 +49,8 @@ export default function ShopDetailPage() {
           <ArrowLeft size={16} /> Dükkânlar
         </Link>
         <div className="shop-hero">
+          <PhotoGallery photos={shop.photos} shopName={shop.name} />
+          <div className="shop-hero__side">
           <div className="card card--hero">
             <div className="row-between">
               <span className={`badge ${shop.is_open_now ? 'badge--open' : 'badge--closed'}`}>
@@ -69,6 +72,7 @@ export default function ShopDetailPage() {
           </div>
           <div className="shop-hero__map">
             <ShopMap shops={[shop]} interactive={false} />
+          </div>
           </div>
         </div>
       </div>
