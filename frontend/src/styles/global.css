@@ -853,3 +853,9 @@ main:focus { outline: none; }
   border: 3px solid var(--yellow-500); border-radius: 18px;
   box-shadow: 0 0 0 999px rgba(8, 18, 46, 0.35);
 }
+
+/* ---------- Profil ---------- */
+
+.profile-form { max-width: 640px; }
+.user-chip__link { display: inline-flex; align-items: center; gap: 10px; border-radius: 999px; padding: 2px 10px 2px 2px; }
+.user-chip__link:hover { background: rgba(255, 255, 255, 0.08); }
