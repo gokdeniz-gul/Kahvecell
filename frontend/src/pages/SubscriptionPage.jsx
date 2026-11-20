@@ -6,6 +6,7 @@ import { paymentsApi, queryKeys, subscriptionsApi } from '../api/endpoints'
 import { Alert, ErrorState, Loading } from '../components/StateViews'
 import { useSubscription } from '../hooks/useSubscription'
 import { formatDate, formatDateTime, formatTL } from '../lib/format'
+import { formatCardNumber, formatExpiry, validateCard } from '../lib/validation'
 
 const TEST_CARDS = [
   { number: '4242 4242 4242 4242', label: '4242… başarılı' },
@@ -18,34 +19,13 @@ const PLAN_PERKS = {
   UNLIMITED: ['Sınırsız kahve', 'Tüm anlaşmalı dükkânlar', '5 misafir hakkı', 'Öncelikli hazırlanma'],
 }
 
-const formatCardNumber = (value) => value.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ')
-
-/** Kart formu doğrulaması (client-side). Sunucu da ayrıca doğrular. */
-function validateCard(card) {
-  const errors = {}
-  if (card.holder.trim().length < 2) errors.holder = 'Kart üzerindeki ismi gir.'
-  if (card.number.replace(/\s/g, '').length !== 16) errors.number = 'Kart numarası 16 haneli olmalı.'
-  const match = card.expiry.match(/^(\d{2})\/(\d{2})$/)
-  if (!match || Number(match[1]) < 1 || Number(match[1]) > 12) {
-    errors.expiry = 'AA/YY biçiminde gir.'
-  } else {
-    const now = new Date()
-    const [month, year] = [Number(match[1]), 2000 + Number(match[2])]
-    if (year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1)) {
-      errors.expiry = 'Kartın süresi dolmuş.'
-    }
-  }
-  if (!/^\d{3,4}$/.test(card.cvc)) errors.cvc = '3 haneli güvenlik kodu.'
-  return errors
-}
-
 function PaymentPanel({ checkout, onClose, onPaid }) {
   const [card, setCard] = useState({ holder: '', number: '', expiry: '', cvc: '' })
   const [errors, setErrors] = useState({})
   const update = (field) => (event) => {
     let value = event.target.value
     if (field === 'number') value = formatCardNumber(value)
-    if (field === 'expiry') value = value.replace(/\D/g, '').slice(0, 4).replace(/^(\d{2})(\d)/, '$1/$2')
+    if (field === 'expiry') value = formatExpiry(value)
     if (field === 'cvc') value = value.replace(/\D/g, '').slice(0, 4)
     setCard((current) => ({ ...current, [field]: value }))
   }

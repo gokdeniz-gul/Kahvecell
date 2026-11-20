@@ -1,0 +1,49 @@
+# KahveCell — tüm sistemi tek komutla ayağa kaldırır (case 8.1 bonus):
+#
+#   docker compose up --build
+#
+#   Uygulama : http://localhost:8080
+#   Swagger  : http://localhost:8080/docs
+#
+# Üretim için kök dizinde .env oluşturup ENVIRONMENT=production ve güçlü
+# JWT_SECRET_KEY / QR_SIGNING_SECRET / POSTGRES_PASSWORD verin.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: kahvecell
+      POSTGRES_USER: kahvecell
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kahvecell-dev}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kahvecell -d kahvecell"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://kahvecell:${POSTGRES_PASSWORD:-kahvecell-dev}@db:5432/kahvecell
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-sadece-gelistirme-icin-degistir}
+      QR_SIGNING_SECRET: ${QR_SIGNING_SECRET:-dev-qr-secret-sadece-gelistirme-icin-degistir}
+      CORS_ORIGINS: http://localhost:8080
+      LOG_FORMAT: json
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:

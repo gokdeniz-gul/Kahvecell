@@ -1,9 +1,11 @@
 const tl = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' })
 const dateTime = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })
+const clock = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' })
 const dateOnly = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
 
 export const formatTL = (kurus) => tl.format(kurus / 100)
 export const formatDateTime = (iso) => dateTime.format(new Date(iso))
+export const formatClock = (iso) => clock.format(new Date(iso))
 export const formatDate = (iso) => dateOnly.format(new Date(iso))
 export const formatTime = (hhmmss) => hhmmss.slice(0, 5)
 export const formatDistance = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
@@ -19,6 +21,16 @@ export const ORDER_STATUS = {
 
 export const ORDER_FLOW = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'COMPLETED']
 export const ACTIVE_ORDER = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY']
+
+/** Dükkân panelinde her durumun "sonraki adım" düğmesi. Teslim (COMPLETED) QR okutmayı gerektirir. */
+export const NEXT_ACTION = {
+  PENDING: { status: 'ACCEPTED', label: 'Kabul et' },
+  ACCEPTED: { status: 'PREPARING', label: 'Hazırlamaya başla' },
+  PREPARING: { status: 'READY', label: 'Hazır' },
+  READY: { status: 'COMPLETED', label: 'QR okut ve teslim et', needsQr: true },
+}
+
+export const STAFF_ROLES = ['SHOP_OWNER', 'ADMIN']
 
 export const SIZES = [
   { value: 'S', label: 'Küçük' },

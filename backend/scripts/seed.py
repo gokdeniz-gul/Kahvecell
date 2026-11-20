@@ -15,7 +15,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import models  # noqa: F401  (tüm tablolar Base'e kaydolsun)
-from app.core.database import Base, SessionLocal, engine
+from app.core.database import SessionLocal
+from app.core.migrations import upgrade_database
 from app.models import Payment, Plan, Product, Shop, Subscription, User
 from app.models.enums import PaymentStatus, PlanType, ProductCategory, UserRole
 
@@ -220,7 +221,7 @@ def seed(db: Session) -> None:
 
 
 def main() -> None:
-    Base.metadata.create_all(bind=engine)  # sunucu hiç açılmamış olsa da tablolar hazır olsun
+    upgrade_database()  # sunucu hiç açılmamış olsa da şema hazır olsun
     with SessionLocal() as db:
         seed(db)
 
