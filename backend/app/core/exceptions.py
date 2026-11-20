@@ -119,10 +119,16 @@ async def _http_error_handler(_request: Request, exc: StarletteHTTPException) ->
 
 
 async def _unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
-    # Beklenmeyen hata: detay sadece loglara yazılır, kullanıcıya iç bilgi sızdırılmaz.
-    logger.exception("Beklenmeyen hata: %s %s", request.method, request.url.path)
+    # Beklenmeyen hata: detay (stack trace) istek kimliğiyle birlikte loglara yazılır
+    # (logging.py'deki middleware); kullanıcıya iç bilgi sızdırılmaz, sadece destek için kimlik verilir.
+    request_id = getattr(request.state, "request_id", None)
+    if request_id is None:  # middleware dışında kalan nadir durumlar
+        logger.exception("Beklenmeyen hata: %s %s", request.method, request.url.path)
     return _error_response(
-        status.HTTP_500_INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Beklenmeyen bir hata oluştu."
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "INTERNAL_ERROR",
+        "Beklenmeyen bir hata oluştu.",
+        {"request_id": request_id} if request_id else None,
     )
 
 
