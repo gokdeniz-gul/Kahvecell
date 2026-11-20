@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     app_name: str = "KahveCell API"
     environment: str = "development"  # development | production
     database_url: str = "sqlite:///./kahvecell.db"
+    # Açılışta Alembic migration'larını otomatik uygula (testlerde kapalı).
+    auto_migrate: bool = True
 
     # İzin verilen frontend adresleri (CORS). Virgülle ayrılır.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
