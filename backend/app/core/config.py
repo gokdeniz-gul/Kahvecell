@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # Açılışta Alembic migration'larını otomatik uygula (testlerde kapalı).
     auto_migrate: bool = True
 
+    # Loglama: "text" (okunaklı) ya da "json" (yapılandırılmış, üretim için)
+    log_format: str = "text"
+    log_level: str = "INFO"
+
     # İzin verilen frontend adresleri (CORS). Virgülle ayrılır.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
