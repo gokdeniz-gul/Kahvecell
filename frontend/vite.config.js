@@ -8,8 +8,9 @@ export default defineConfig({
     port: 5173,
     // Geliştirmede "/api" ile başlayan istekleri FastAPI'ye yönlendir.
     // Böylece frontend kodu backend adresini bilmek zorunda kalmaz.
+    // Hedef değiştirilebilir (örn. Docker'da: VITE_PROXY_TARGET=http://backend:8000).
     proxy: {
-      '/api': 'http://127.0.0.1:8000',
+      '/api': process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000',
     },
   },
   // Vitest: tarayıcı benzeri ortamda (jsdom) bileşen ve fonksiyon testleri
