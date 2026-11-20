@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, CircleX, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Check, CircleX, Copy, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { ordersApi, queryKeys } from '../api/endpoints'
 import { Alert, ErrorState, Loading } from '../components/StateViews'
+import { useEventStream } from '../hooks/useEventStream'
 import {
   ACTIVE_ORDER,
   MILKS,
@@ -42,9 +44,27 @@ export default function OrderQrPage() {
   const orderQuery = useQuery({
     queryKey: queryKeys.order(orderId),
     queryFn: () => ordersApi.get(orderId),
-    // Sipariş devam ederken durumu 5 saniyede bir kontrol et (bitince dur).
-    refetchInterval: (query) => (ACTIVE_ORDER.includes(query.state.data?.status) ? 5000 : false),
+    // Asıl güncelleme canlı bağlantıdan (SSE) gelir; bağlantı koparsa 30 sn'de bir yedek kontrol.
+    refetchInterval: (query) => (ACTIVE_ORDER.includes(query.state.data?.status) ? 30_000 : false),
   })
+
+  const isActive = ACTIVE_ORDER.includes(orderQuery.data?.status)
+  // Dükkân durumu değiştirdiği anda sunucu haber verir; siparişi tazeleriz.
+  useEventStream(`/orders/${orderId}/events`, () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.order(orderId) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.orders })
+  }, { enabled: isActive })
+
+  const [copied, setCopied] = useState(false)
+  async function copyQrContent(content) {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }
 
   const cancelOrder = useMutation({
     mutationFn: () => ordersApi.cancel(orderId),
@@ -69,7 +89,7 @@ export default function OrderQrPage() {
       </Link>
       <div className="page-head">
         <div>
-          <h1>{ORDER_STATUS[order.status].label}</h1>
+          <h1 aria-live="polite">{ORDER_STATUS[order.status].label}</h1>
           <p className="muted">{order.shop.name} · {formatDateTime(order.created_at)}</p>
         </div>
         {order.is_priority && <span className="badge badge--yellow">⚡ Öncelikli sipariş</span>}
@@ -87,6 +107,9 @@ export default function OrderQrPage() {
                 <p className="muted">Kod sana özel ve imzalı; ekran görüntüsü başka siparişte işe yaramaz.</p>
               </div>
               <span className="badge badge--navy"><ShieldCheck size={14} /> HMAC-SHA256 ile imzalı</span>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => copyQrContent(order.qr.content)}>
+                <Copy size={15} /> {copied ? 'Kopyalandı' : 'QR içeriğini kopyala'}
+              </button>
             </>
           ) : order.status === 'COMPLETED' ? (
             <div className="state">
