@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, Field, computed_field
@@ -105,3 +105,23 @@ class VerifyQrResponse(BaseModel):
     message: str
     can_complete: bool = Field(description="Sipariş READY durumundaysa teslim edilebilir")
     order: OrderResponse
+
+
+class TopProduct(BaseModel):
+    name: str
+    count: int
+
+
+class ShopDailyStats(BaseModel):
+    """Dükkân sahibi dashboard'u: bir günün sipariş analitiği (case 3.5)."""
+
+    day: date
+    total_orders: int
+    by_status: dict[OrderStatus, int]
+    completed: int
+    cancelled: int
+    active: int = Field(description="Henüz teslim edilmemiş/iptal edilmemiş siparişler")
+    credits_used: int
+    avg_prep_minutes: float | None = Field(description="Siparişten teslime ortalama süre (dk)")
+    top_products: list[TopProduct]
+    hourly: list[int] = Field(description="İstanbul saatine göre 0-23 arası saatlik sipariş sayısı")

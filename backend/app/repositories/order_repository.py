@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
@@ -76,6 +77,14 @@ class OrderRepository:
             .limit(limit)
         ).all()
         return orders, total
+
+    def list_created_between(
+        self, shop_ids: list[str] | None, start: datetime, end: datetime
+    ) -> Sequence[Order]:
+        query = select(Order).where(Order.created_at >= start, Order.created_at < end)
+        if shop_ids is not None:
+            query = query.where(Order.shop_id.in_(shop_ids))
+        return self.db.scalars(query).all()
 
     def shop_ids_owned_by(self, owner_id: str) -> list[str]:
         return list(self.db.scalars(select(Shop.id).where(Shop.owner_id == owner_id)).all())

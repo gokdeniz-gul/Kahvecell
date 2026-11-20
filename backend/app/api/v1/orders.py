@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, status
@@ -15,6 +16,7 @@ from app.schemas.order import (
     CreateOrderRequest,
     OrderListResponse,
     OrderResponse,
+    ShopDailyStats,
     UpdateOrderStatusRequest,
     VerifyQrRequest,
     VerifyQrResponse,
@@ -63,6 +65,17 @@ def incoming_orders(
             user, shop_id=shop_id, statuses=status_filter, offset=offset, limit=limit
         )
     )
+
+
+@router.get("/stats", summary="[Dükkân] Günlük sipariş analitiği (dashboard)")
+def daily_stats(
+    user: ShopStaffUser,
+    db: DbSession,
+    clock: Clock,
+    shop_id: Annotated[str | None, Query(description="Birden çok dükkânınız varsa filtre")] = None,
+    day: Annotated[date | None, Query(description="YYYY-AA-GG; boşsa bugün (İstanbul)")] = None,
+) -> ApiResponse[ShopDailyStats]:
+    return ok(OrderService(db, clock).daily_stats(user, shop_id=shop_id, day=day))
 
 
 SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}  # proxy'ler tamponlamasın
