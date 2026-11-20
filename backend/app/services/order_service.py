@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from sqlalchemy.orm import Session
 
 from app.core import qr
+from app.core.events import publish_order_event
 from app.core.exceptions import (
     BadRequestError,
     ConflictError,
@@ -139,6 +140,7 @@ class OrderService:
         )
         order.qr_signature = self._qr_payload(order)["signature"]
         self.db.commit()
+        publish_order_event("order.created", order)  # dükkân paneline yeni sipariş bildirimi
         return self._to_response(order, viewer=user)
 
     def reorder(self, user: User, order_id: str) -> OrderResponse:
@@ -236,6 +238,7 @@ class OrderService:
             if order.credits_used:
                 self.orders.refund_credit(order.subscription_id)  # hakkı iade et
         self.db.commit()
+        publish_order_event("order.updated", order)  # açık SSE bağlantılarına anında bildir
         return self._to_response(order, viewer=user)
 
     # ---------- QR doğrulama ----------

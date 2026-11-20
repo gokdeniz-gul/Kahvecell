@@ -1,8 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, status
+from fastapi.responses import StreamingResponse
 
-from app.api.deps import Clock, CurrentUser, CustomerUser, DbSession, ShopStaffUser
+from app.api.deps import Clock, CurrentUser, CustomerUser, DbSession, ShopStaffUser, StreamUser
+from app.core.config import settings
+from app.core.events import sse_stream
+from app.core.exceptions import ForbiddenError
+from app.models.enums import UserRole
+from app.repositories.order_repository import OrderRepository
 from app.models.enums import OrderStatus
 from app.schemas.common import ApiResponse, ok
 from app.schemas.order import (
@@ -59,6 +65,31 @@ def incoming_orders(
     )
 
 
+SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}  # proxy'ler tamponlamasın
+
+
+def _event_stream(request: Request, channels: list[str]) -> StreamingResponse:
+    return StreamingResponse(
+        sse_stream(channels, request.is_disconnected, keepalive_seconds=settings.sse_keepalive_seconds),
+        media_type="text/event-stream",
+        headers=SSE_HEADERS,
+    )
+
+
+@router.get(
+    "/incoming/events",
+    summary="[Dükkân] Canlı bildirim (SSE): yeni sipariş ve durum değişiklikleri",
+    description="Tarayıcıda: `new EventSource('/api/v1/orders/incoming/events?token=<access_token>')`",
+)
+def incoming_events(request: Request, user: StreamUser, db: DbSession) -> StreamingResponse:
+    if user.role not in (UserRole.SHOP_OWNER, UserRole.ADMIN):
+        raise ForbiddenError()
+    orders = OrderRepository(db)
+    shop_ids = orders.all_shop_ids() if user.role == UserRole.ADMIN else orders.shop_ids_owned_by(user.id)
+    db.close()  # yetki kontrolü bitti; uzun süren bağlantı boyunca veritabanı oturumu tutulmasın
+    return _event_stream(request, [f"shop:{shop_id}" for shop_id in shop_ids])
+
+
 @router.post(
     "/verify-qr",
     summary="[Dükkân] QR kodu doğrula: gerçek mi, bu dükkânın mı?",
@@ -71,6 +102,17 @@ def verify_qr(body: VerifyQrRequest, user: ShopStaffUser, db: DbSession) -> ApiR
 @router.get("/{order_id}", summary="Sipariş detayı ve QR kod (sipariş sahibi veya dükkân)")
 def get_order(order_id: str, user: CurrentUser, db: DbSession) -> ApiResponse[OrderResponse]:
     return ok(OrderService(db).get(user, order_id))
+
+
+@router.get(
+    "/{order_id}/events",
+    summary="Siparişin canlı durum akışı (SSE) — müşteri ve dükkân",
+    description="Tarayıcıda: `new EventSource('/api/v1/orders/{id}/events?token=<access_token>')`",
+)
+def order_events(order_id: str, request: Request, user: StreamUser, db: DbSession) -> StreamingResponse:
+    OrderService(db).get(user, order_id)  # siparişi görme yetkisi yoksa 404
+    db.close()
+    return _event_stream(request, [f"order:{order_id}"])
 
 
 @router.patch(
