@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, payments, subscriptions, users
+from app.api.v1 import auth, payments, shops, subscriptions, users
 from app.schemas.common import ApiResponse, MessageData, ok
 
 api_router = APIRouter()
@@ -10,6 +10,7 @@ api_router.include_router(auth.router)
 api_router.include_router(users.router)
 api_router.include_router(subscriptions.router)
 api_router.include_router(payments.router)
+api_router.include_router(shops.router)
 
 
 @api_router.get("/health", tags=["Health"], summary="Sunucu ayakta mı?")
