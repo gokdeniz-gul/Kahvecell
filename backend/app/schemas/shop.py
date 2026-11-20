@@ -50,10 +50,18 @@ class ShopSummary(BaseModel):
     )
 
 
+class ShopPhotoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    url: str
+    alt_text: str
+
+
 class ShopDetail(ShopSummary):
-    """Dükkân detay sayfası: bilgiler + menü."""
+    """Dükkân detay sayfası: bilgiler + fotoğraflar + menü."""
 
     phone: str | None
+    photos: list[ShopPhotoResponse] = Field(description="Galeri; ilk fotoğraf kapak görselidir")
     menu: list[ProductResponse]
 
 
