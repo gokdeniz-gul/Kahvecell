@@ -40,6 +40,13 @@ export const ordersApi = {
   history: (params) => api.get('/orders/history', { params }),
   reorder: (orderId) => api.post(`/orders/${orderId}/reorder`),
   cancel: (orderId) => api.patch(`/orders/${orderId}/status`, { status: 'CANCELLED' }),
+
+  // Dükkân sahibi
+  incoming: (params) => api.get('/orders/incoming', { params }),
+  stats: (params) => api.get('/orders/stats', { params }),
+  updateStatus: (orderId, status, qrContent = null) =>
+    api.patch(`/orders/${orderId}/status`, { status, ...(qrContent && { qr_content: qrContent }) }),
+  verifyQr: (qrContent) => api.post('/orders/verify-qr', { qr_content: qrContent }),
 }
 
 /** React Query anahtarları tek yerde: hangi veri hangi isimle önbellekte, karışmasın. */
@@ -52,4 +59,6 @@ export const queryKeys = {
   payments: ['payments'],
   orders: ['orders'],
   order: (orderId) => ['orders', orderId],
+  incoming: ['incoming'],
+  stats: ['stats'],
 }

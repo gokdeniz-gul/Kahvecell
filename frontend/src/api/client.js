@@ -3,7 +3,7 @@ import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
 // .env'de boş bırakılırsa ("") da varsayılana düşsün diye ?? değil || kullanıyoruz.
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+export const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
 
 /** Backend'in { success:false, error:{ code, message, details } } cevabını taşıyan hata. */
 export class ApiError extends Error {
