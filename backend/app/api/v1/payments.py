@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import CurrentUser, CustomerUser, DbSession
+from app.core.rate_limit import payment_rate_limit
 from app.schemas.common import ApiResponse, ok
 from app.schemas.payment import PaymentListResponse, PaymentResponse, ProcessPaymentRequest
 from app.services.payment_service import PaymentService
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
         "Başarılı ödemenin `transaction_id` değeriyle POST /subscriptions veya "
         "PATCH /subscriptions/me çağrılır. Reddedilen ödeme 402 döner ve geçmişe kaydedilir."
     ),
+    dependencies=[Depends(payment_rate_limit)],  # kart denemesi (card testing) saldırısına karşı
 )
 def process_payment(
     body: ProcessPaymentRequest, user: CustomerUser, db: DbSession
