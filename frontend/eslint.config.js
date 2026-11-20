@@ -18,4 +18,9 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // Yapılandırma dosyaları tarayıcıda değil Node.js'te çalışır (process.env vb.)
+    files: ['*.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

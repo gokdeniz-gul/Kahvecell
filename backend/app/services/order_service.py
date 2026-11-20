@@ -12,12 +12,14 @@ Durum makinesi (state machine):
 """
 
 import json
+from collections import Counter
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core import qr
+from app.core.events import publish_order_event
 from app.core.exceptions import (
     BadRequestError,
     ConflictError,
@@ -35,6 +37,8 @@ from app.schemas.order import (
     OrderResponse,
     OrderShopInfo,
     QrCodeResponse,
+    ShopDailyStats,
+    TopProduct,
     VerifyQrResponse,
 )
 from app.services.shop_service import ISTANBUL_TZ, is_open_at
@@ -139,6 +143,7 @@ class OrderService:
         )
         order.qr_signature = self._qr_payload(order)["signature"]
         self.db.commit()
+        publish_order_event("order.created", order)  # dükkân paneline yeni sipariş bildirimi
         return self._to_response(order, viewer=user)
 
     def reorder(self, user: User, order_id: str) -> OrderResponse:
@@ -184,14 +189,11 @@ class OrderService:
         limit: int,
     ) -> OrderListResponse:
         """Dükkân paneli: sahibi olduğum dükkânlara gelen siparişler (öncelikliler önce)."""
-        is_admin = user.role == UserRole.ADMIN
-        shop_ids = None if is_admin else self.orders.shop_ids_owned_by(user.id)  # None = hepsi
-        if shop_id is not None:
-            if not is_admin and shop_id not in shop_ids:
-                raise ForbiddenError("Bu dükkânın sahibi değilsiniz.", code="NOT_SHOP_OWNER")
-            shop_ids = [shop_id]
         orders, total = self.orders.list_for_shops(
-            shop_ids, statuses or ACTIVE_ORDER_STATUSES, offset=offset, limit=limit
+            self._staff_shop_scope(user, shop_id),
+            statuses or ACTIVE_ORDER_STATUSES,
+            offset=offset,
+            limit=limit,
         )
         return OrderListResponse(
             items=[self._to_response(o, viewer=user) for o in orders],
@@ -199,6 +201,46 @@ class OrderService:
             offset=offset,
             limit=limit,
         )
+
+    def daily_stats(self, user: User, *, shop_id: str | None, day: date | None) -> ShopDailyStats:
+        """Dükkân sahibi dashboard'u: seçilen günün (İstanbul saatiyle) sipariş analitiği."""
+        day = day or self.clock().astimezone(ISTANBUL_TZ).date()
+        start = datetime.combine(day, time.min, tzinfo=ISTANBUL_TZ)
+        orders = self.orders.list_created_between(
+            self._staff_shop_scope(user, shop_id), start, start + timedelta(days=1)
+        )
+
+        by_status = Counter(order.status for order in orders)
+        prep_minutes = [
+            (order.completed_at - order.created_at).total_seconds() / 60
+            for order in orders
+            if order.status == OrderStatus.COMPLETED and order.completed_at
+        ]
+        products = Counter(item.product.name for order in orders for item in order.items)
+        hourly = Counter(order.created_at.astimezone(ISTANBUL_TZ).hour for order in orders)
+
+        return ShopDailyStats(
+            day=day,
+            total_orders=len(orders),
+            by_status={status: by_status.get(status, 0) for status in OrderStatus},
+            completed=by_status.get(OrderStatus.COMPLETED, 0),
+            cancelled=by_status.get(OrderStatus.CANCELLED, 0),
+            active=sum(by_status.get(status, 0) for status in ACTIVE_ORDER_STATUSES),
+            credits_used=sum(order.credits_used for order in orders),
+            avg_prep_minutes=round(sum(prep_minutes) / len(prep_minutes), 1) if prep_minutes else None,
+            top_products=[TopProduct(name=name, count=count) for name, count in products.most_common(5)],
+            hourly=[hourly.get(hour, 0) for hour in range(24)],
+        )
+
+    def _staff_shop_scope(self, user: User, shop_id: str | None) -> list[str] | None:
+        """Kullanıcının görebileceği dükkânlar. None = hepsi (admin)."""
+        is_admin = user.role == UserRole.ADMIN
+        shop_ids = None if is_admin else self.orders.shop_ids_owned_by(user.id)
+        if shop_id is not None:
+            if not is_admin and shop_id not in shop_ids:
+                raise ForbiddenError("Bu dükkânın sahibi değilsiniz.", code="NOT_SHOP_OWNER")
+            shop_ids = [shop_id]
+        return shop_ids
 
     # ---------- Durum güncelleme ----------
 
@@ -236,6 +278,7 @@ class OrderService:
             if order.credits_used:
                 self.orders.refund_credit(order.subscription_id)  # hakkı iade et
         self.db.commit()
+        publish_order_event("order.updated", order)  # açık SSE bağlantılarına anında bildir
         return self._to_response(order, viewer=user)
 
     # ---------- QR doğrulama ----------

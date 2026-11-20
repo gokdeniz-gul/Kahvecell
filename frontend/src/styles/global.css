@@ -757,3 +757,99 @@ textarea.input { min-height: 90px; resize: vertical; }
   .history-item__actions { width: 100%; display: flex; gap: 8px; }
   .history-item__actions .btn { flex: 1; }
 }
+
+/* ---------- Erişilebilirlik ---------- */
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 2000;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--yellow-500);
+  color: var(--navy-900);
+  font-weight: 700;
+}
+
+.skip-link:focus { top: 12px; }
+
+main:focus { outline: none; }
+
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Hareket hassasiyeti olan kullanıcılar için animasyonları kapat. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Dükkân paneli ---------- */
+
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stat-card { display: flex; align-items: center; gap: 14px; padding: 16px; }
+.stat-card__icon {
+  width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0;
+  display: grid; place-items: center; background: var(--yellow-100); color: var(--navy-900);
+}
+.stat-card__value { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+
+.stats-detail { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+
+.hourly { display: flex; align-items: flex-end; gap: 6px; height: 140px; margin: 0; }
+.hourly__bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.hourly__bar span { display: block; width: 100%; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--navy-700); }
+.hourly__bar small { font-size: 0.7rem; color: var(--text-subtle); }
+
+.top-products { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; counter-reset: rank; }
+.top-products li { display: flex; justify-content: space-between; gap: 8px; counter-increment: rank; }
+.top-products li span::before { content: counter(rank) '. '; color: var(--text-subtle); font-weight: 700; }
+
+.board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 14px; align-items: start; }
+.board__column { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--radius); background: var(--surface-muted); min-height: 160px; }
+.board__title { display: flex; align-items: center; justify-content: space-between; font-size: 0.95rem; padding: 4px 4px 2px; }
+
+.order-card { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.order-card--priority { border-color: var(--yellow-500); box-shadow: 0 0 0 1px var(--yellow-500); }
+.order-card__note { font-size: 0.85rem; font-style: italic; color: var(--navy-800); background: var(--info-bg); border-radius: 8px; padding: 6px 10px; }
+
+@media (max-width: 1000px) {
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-detail { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .board { grid-template-columns: 1fr; }
+}
+
+/* ---------- QR okutma penceresi ---------- */
+
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 3000;
+  display: grid; place-items: center; padding: 16px;
+  background: rgba(8, 18, 46, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.modal { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; box-shadow: var(--shadow-lg); }
+.modal:focus { outline: none; }
+
+.scanner-video { position: relative; border-radius: var(--radius); overflow: hidden; background: var(--navy-950); aspect-ratio: 4 / 3; }
+.scanner-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scanner-video__frame {
+  position: absolute; inset: 18%;
+  border: 3px solid var(--yellow-500); border-radius: 18px;
+  box-shadow: 0 0 0 999px rgba(8, 18, 46, 0.35);
+}

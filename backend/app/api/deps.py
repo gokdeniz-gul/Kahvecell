@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -22,14 +22,8 @@ _bearer_scheme = HTTPBearer(auto_error=False, description="verify-otp'den dönen
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-def get_current_user(
-    db: DbSession,
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
-) -> User:
-    if credentials is None:
-        raise UnauthorizedError()
-
-    payload = decode_access_token(credentials.credentials)
+def _user_from_token(db: Session, token: str) -> User:
+    payload = decode_access_token(token)
     user = UserRepository(db).get_by_id(payload["sub"])
     if user is None or not user.is_phone_verified:
         raise UnauthorizedError("Kullanıcı bulunamadı.", code="TOKEN_INVALID")
@@ -37,7 +31,27 @@ def get_current_user(
     return user
 
 
+def get_current_user(
+    db: DbSession,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
+) -> User:
+    if credentials is None:
+        raise UnauthorizedError()
+    return _user_from_token(db, credentials.credentials)
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_user_from_query_token(
+    db: DbSession,
+    token: Annotated[str, Query(description="Access token (EventSource başlık gönderemediği için adreste)")],
+) -> User:
+    """SSE bağlantıları için: tarayıcının EventSource'u Authorization başlığı ekleyemiyor."""
+    return _user_from_token(db, token)
+
+
+StreamUser = Annotated[User, Depends(get_user_from_query_token)]
 
 
 def require_roles(*allowed_roles: UserRole) -> Callable[[User], User]:

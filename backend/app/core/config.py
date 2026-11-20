@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     app_name: str = "KahveCell API"
     environment: str = "development"  # development | production
     database_url: str = "sqlite:///./kahvecell.db"
+    # Açılışta Alembic migration'larını otomatik uygula (testlerde kapalı).
+    auto_migrate: bool = True
+
+    # Loglama: "text" (okunaklı) ya da "json" (yapılandırılmış, üretim için)
+    log_format: str = "text"
+    log_level: str = "INFO"
 
     # İzin verilen frontend adresleri (CORS). Virgülle ayrılır.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
@@ -41,6 +47,9 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     auth_rate_limit_per_minute: int = 10  # SMS kodu / token istekleri
     payment_rate_limit_per_minute: int = 10
+
+    # --- Gerçek zamanlı bildirim (SSE) ---
+    sse_keepalive_seconds: float = 15.0  # bağlantı kopmasın diye boş "ping" aralığı
 
     # --- Abonelik ---
     subscription_period_days: int = 30

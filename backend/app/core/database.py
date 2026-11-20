@@ -1,5 +1,6 @@
 """Veritabanı bağlantısı, oturum (session) üretimi ve tüm modellerin ortak tabanı."""
 
+import sqlite3
 from collections.abc import Generator
 
 from sqlalchemy import create_engine, event
@@ -19,14 +20,17 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-if _is_sqlite:
+@event.listens_for(Engine, "connect")
+def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+    """SQLite foreign key kurallarını varsayılan olarak UYGULAMAZ; her SQLite bağlantısında açıyoruz.
 
-    @event.listens_for(Engine, "connect")
-    def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
-        """SQLite foreign key kurallarını varsayılan olarak UYGULAMAZ; her bağlantıda açıyoruz."""
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+    Dinleyici tüm motorlara (engine) bağlı; PostgreSQL bağlantılarında hiçbir şey yapmaz.
+    """
+    if not isinstance(dbapi_connection, sqlite3.Connection):
+        return
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 class Base(DeclarativeBase):

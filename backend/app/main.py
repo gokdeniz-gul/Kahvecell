@@ -15,22 +15,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import models  # noqa: F401  (modeller Base'e kaydolsun diye içe aktarılıyor)
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import Base, engine
 from app.core.exceptions import register_exception_handlers
+from app.core.logging import request_context_middleware, setup_logging
+from app.core.migrations import upgrade_database
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
-)
-
-
+setup_logging(settings.log_format, settings.log_level)
 logger = logging.getLogger("app")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    # Uygulama açılırken: eksik tabloları oluştur. Var olan tablolara dokunmaz.
-    Base.metadata.create_all(bind=engine)
+    # Uygulama açılırken veritabanı şemasını Alembic migration'larıyla en son sürüme getir.
+    if settings.auto_migrate:
+        upgrade_database()
     if settings.uses_dev_secrets:
         logger.warning("Varsayılan geliştirme anahtarları kullanılıyor; üretimde .env ile değiştirin.")
     yield
@@ -67,6 +64,9 @@ async def add_security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
     return response
 
+
+# En son eklenen middleware en dışta çalışır: istek kimliği her şeyi (hatalar dahil) kapsasın.
+app.middleware("http")(request_context_middleware)
 
 register_exception_handlers(app)
 app.include_router(api_router, prefix="/api/v1")
