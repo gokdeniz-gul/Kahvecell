@@ -35,6 +35,22 @@
 
 ---
 
+## Ekran görüntüleri
+
+| Giriş (GSM + OTP) | Keşfet: harita, filtreler, yakındaki dükkânlar |
+|---|---|
+| ![Giriş ekranı](docs/screenshots/01-giris.png) | ![Keşfet ekranı](docs/screenshots/02-kesfet.png) |
+| **Dükkân detayı: fotoğraf galerisi, konum, menü** | **Sipariş: kahve özelleştirme** |
+| ![Dükkân detayı](docs/screenshots/03-dukkan-detay.png) | ![Sipariş ekranı](docs/screenshots/04-siparis.png) |
+| **İmzalı QR ve canlı durum takibi** | **Abonelik: paket yükseltme ve ödeme sonucu** |
+| ![QR ve takip](docs/screenshots/05-qr-takip.png) | ![Abonelik ve ödeme](docs/screenshots/06-abonelik-odeme.png) |
+
+**Dükkân sahibi paneli:** günlük analitik, canlı sipariş panosu, QR ile teslim
+
+![Dükkân paneli](docs/screenshots/07-dukkan-paneli.png)
+
+---
+
 ## Hızlı başlangıç
 
 ### Seçenek A — Docker (tek komut)
@@ -112,7 +128,102 @@ CI'da backend testleri **SQLite ve PostgreSQL** üzerinde, ardından Docker Comp
 
 ### Veritabanı
 
-`users` · `plans` · `subscriptions` · `payments` · `shops` · `shop_photos` · `products` · `orders` · `order_items` · `otp_requests` · `refresh_tokens`
+```mermaid
+erDiagram
+    users ||--o{ subscriptions : "abone olur"
+    plans ||--o{ subscriptions : "paketi"
+    users ||--o{ payments : "öder"
+    subscriptions |o--o{ payments : "transaction_id ile eşleşir"
+    users ||--o{ orders : "verir"
+    shops ||--o{ orders : "alır"
+    subscriptions ||--o{ orders : "hakkından düşer"
+    orders ||--|{ order_items : "içerir"
+    products ||--o{ order_items : "ürünü"
+    shops ||--o{ products : "menüsü"
+    shops ||--o{ shop_photos : "galerisi"
+    users |o--o{ shops : "sahibidir"
+    users ||--o{ refresh_tokens : "oturumları"
+
+    users {
+        uuid id PK
+        string phone_number UK
+        string full_name
+        string email UK
+        enum role "CUSTOMER | SHOP_OWNER | ADMIN"
+        json preferences "kahve türleri, alerjenler"
+    }
+    plans {
+        uuid id PK
+        enum plan_type UK
+        int monthly_price_kurus
+        int monthly_credits "NULL = sınırsız"
+        int guest_passes
+    }
+    subscriptions {
+        uuid id PK
+        uuid user_id FK
+        uuid plan_id FK
+        uuid pending_plan_id FK "gelecek ay düşürme"
+        enum status
+        int remaining_credits
+        datetime expires_at
+    }
+    payments {
+        uuid id PK
+        string transaction_id UK
+        enum status "SUCCESS | FAILED"
+        int amount_kurus
+        string card_last4
+    }
+    shops {
+        uuid id PK
+        uuid owner_id FK
+        float latitude
+        float longitude
+        time opens_at
+        float rating
+    }
+    orders {
+        uuid id PK
+        uuid user_id FK
+        uuid shop_id FK
+        uuid subscription_id FK
+        enum status "durum makinesi"
+        int credits_used
+        string qr_signature "HMAC-SHA256"
+    }
+    order_items {
+        uuid id PK
+        enum size
+        enum milk
+        int extra_shots
+        int unit_price_kurus "sipariş anındaki fiyat"
+    }
+```
+
+Ayrıca: `products`, `shop_photos`, `otp_requests` (OTP özetleri), `refresh_tokens` (oturum özetleri).
+
+### Sipariş akışı
+
+```mermaid
+sequenceDiagram
+    actor M as Müşteri
+    participant API as FastAPI
+    participant DB as Veritabanı
+    actor D as Dükkân sahibi
+    M->>API: POST /orders (kahve + özelleştirme)
+    API->>DB: Abonelik var mı? Hak > 0 ise 1 düş (tek UPDATE)
+    API->>DB: Siparişi kaydet + QR'ı HMAC ile imzala
+    API-->>M: QR kod (case 13.2 formatı)
+    API--)D: SSE: order.created (panelde anında belirir)
+    D->>API: PATCH status → ACCEPTED → PREPARING → READY
+    API--)M: SSE: order.updated (QR ekranı canlı ilerler)
+    D->>API: POST /orders/verify-qr (müşterinin QR'ı)
+    API-->>D: İmza geçerli ✓ / Sahte QR ✗
+    D->>API: PATCH status → COMPLETED (QR ile)
+```
+
+**Tablolar:** `users` · `plans` · `subscriptions` · `payments` · `shops` · `shop_photos` · `products` · `orders` · `order_items` · `otp_requests` · `refresh_tokens`
 
 - Şema **Alembic migration'larıyla** sürümlenir (`backend/migrations/`); uygulama açılırken `upgrade head` otomatik çalışır. Bir test, migration'ların modellerle birebir aynı olduğunu doğrular.
 - UUID primary key'ler, foreign key / CHECK / UNIQUE kuralları veritabanı seviyesinde
@@ -194,6 +305,7 @@ Dükkân fotoğrafları [Unsplash](https://unsplash.com) kaynaklıdır ve [Unspl
 ```
 kahvecell/
 ├── docker-compose.yml
+├── docs/screenshots/        # README ekran görüntüleri
 ├── .github/workflows/ci.yml
 ├── backend/
 │   ├── app/
