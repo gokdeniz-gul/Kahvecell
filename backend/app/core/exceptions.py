@@ -23,10 +23,18 @@ class AppError(Exception):
     code: str = "BAD_REQUEST"
     message: str = "İstek işlenemedi."
 
-    def __init__(self, message: str | None = None, *, code: str | None = None, details: Any = None):
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        code: str | None = None,
+        details: Any = None,
+        headers: dict[str, str] | None = None,
+    ):
         self.message = message or self.message
         self.code = code or self.code
         self.details = details
+        self.headers = headers
         super().__init__(self.message)
 
 
@@ -82,8 +90,10 @@ def _error_response(
 
 
 async def _app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
-    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, UnauthorizedError) else None
-    return _error_response(exc.status_code, exc.code, exc.message, exc.details, headers)
+    headers = dict(exc.headers or {})
+    if isinstance(exc, UnauthorizedError):
+        headers["WWW-Authenticate"] = "Bearer"
+    return _error_response(exc.status_code, exc.code, exc.message, exc.details, headers or None)
 
 
 async def _validation_error_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:

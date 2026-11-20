@@ -8,6 +8,9 @@ import os
 # app içe aktarılmadan ÖNCE ayarlanmalı: ayarlar import anında okunuyor.
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-en-az-32-karakter-uzunlukta"
+os.environ["ENVIRONMENT"] = "development"
+# Testler aynı "IP"den çok sayıda istek atıyor; rate limit sadece kendi testinde açılıyor.
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 from collections.abc import Iterator  # noqa: E402
 from datetime import datetime  # noqa: E402
