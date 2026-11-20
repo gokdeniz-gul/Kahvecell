@@ -18,22 +18,6 @@ SHOPS_URL = "/api/v1/shops"
 TAKSIM = {"lat": 41.0370, "lng": 28.9850}
 
 
-@pytest.fixture
-def shops(db: Session) -> dict[str, Shop]:
-    """Seed betiğindeki gerçek İstanbul dükkânları ve menüleri."""
-    created = {}
-    for data in SHOPS:
-        shop = Shop(**{k: v for k, v in data.items() if k != "products"})
-        shop.products = [
-            Product(name=name, description=desc, category=cat, price_kurus=round(price * 100))
-            for name, desc, cat, price in data["products"]
-        ]
-        db.add(shop)
-        created[shop.name] = shop
-    db.commit()
-    return created
-
-
 def names(response) -> list[str]:
     return [shop["name"] for shop in response.json()["data"]["items"]]
 
