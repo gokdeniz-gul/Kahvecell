@@ -31,10 +31,17 @@ from app.models.enums import PlanType, UserRole  # noqa: E402
 from app.services.shop_service import ISTANBUL_TZ  # noqa: E402
 from scripts.seed import SHOPS  # noqa: E402
 
-# StaticPool: bellekteki veritabanı tek bağlantıda yaşar, böylece tüm istekler aynı veriyi görür.
-test_engine = create_engine(
-    "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-)
+# Varsayılan: bellekte SQLite. CI'da aynı testler PostgreSQL'e karşı da çalışır:
+#   TEST_DATABASE_URL=postgresql+psycopg://kullanici:sifre@localhost:5432/test pytest
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+
+if TEST_DATABASE_URL.startswith("sqlite"):
+    # StaticPool: bellekteki veritabanı tek bağlantıda yaşar, böylece tüm istekler aynı veriyi görür.
+    test_engine = create_engine(
+        TEST_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+else:
+    test_engine = create_engine(TEST_DATABASE_URL)
 TestSessionLocal = sessionmaker(bind=test_engine, autoflush=False, expire_on_commit=False)
 
 
