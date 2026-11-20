@@ -19,10 +19,12 @@
 ## Özellikler
 
 **Müşteri**
-- **Kayıt / giriş:** GSM + SMS OTP (simülasyon, kod `1234`), profil tamamlama, 30 gün boyunca tekrar kod sorulmaz (refresh token)
+- **Kayıt / giriş:** GSM + SMS OTP (simülasyon, kod `1234`), 30 gün boyunca tekrar kod sorulmaz (refresh token)
+- **Profil:** ad soyad, e-posta, sevilen kahve türleri, alerjenler; sipariş ekranında seçilen süt alerjenle çakışırsa uyarı
 - **Abonelik:** Starter · Premium · Unlimited — satın alma, yükseltme (fark ödenir, anında), düşürme (gelecek dönem), iptal (dönem sonuna kadar geçerli), aylık yenileme
-- **Mobil ödeme simülasyonu:** `4242 4242 4242 4242` başarılı, `4000 0000 0000 0002` reddedilir; ödeme geçmişi
-- **Dükkân keşfi:** harita, mesafeye göre sıralama (Haversine), Türkçe karakter duyarsız arama, "şu an açık" filtresi
+- **Mobil ödeme simülasyonu:** kart formu → onay ekranı → sonuç; `4242 4242 4242 4242` başarılı, `4000 0000 0000 0002` reddedilir; ödeme geçmişi
+- **Dükkân keşfi:** harita, mesafeye göre sıralama (Haversine), Türkçe karakter duyarsız arama, mesafe / puan / "şu an açık" filtreleri
+- **Dükkân detayı:** fotoğraf galerisi, puan, mesafe, çalışma saatleri, menü
 - **Sipariş:** boy / şeker / süt / ek shot, abonelik hakkından atomik düşüm, favori sipariş tekrarı
 - **İmzalı QR + canlı takip:** case 13.2 formatında HMAC-SHA256 imzalı QR; durum değişiklikleri **SSE ile anında** ekrana düşer
 
@@ -81,8 +83,8 @@ Tüm hesaplarda doğrulama kodu **`1234`**.
 ### Testler
 
 ```bash
-cd backend && pytest                                  # 168 test (SQLite)
-cd frontend && npm test && npm run lint && npm run build   # 32 test
+cd backend && pytest                                  # 173 test (SQLite)
+cd frontend && npm test && npm run lint && npm run build   # 52 test
 ```
 
 CI'da backend testleri **SQLite ve PostgreSQL** üzerinde, ardından Docker Compose ile tüm sistem ayağa kaldırılıp uçtan uca duman testi koşar.
@@ -110,7 +112,7 @@ CI'da backend testleri **SQLite ve PostgreSQL** üzerinde, ardından Docker Comp
 
 ### Veritabanı
 
-`users` · `plans` · `subscriptions` · `payments` · `shops` · `products` · `orders` · `order_items` · `otp_requests` · `refresh_tokens`
+`users` · `plans` · `subscriptions` · `payments` · `shops` · `shop_photos` · `products` · `orders` · `order_items` · `otp_requests` · `refresh_tokens`
 
 - Şema **Alembic migration'larıyla** sürümlenir (`backend/migrations/`); uygulama açılırken `upgrade head` otomatik çalışır. Bir test, migration'ların modellerle birebir aynı olduğunu doğrular.
 - UUID primary key'ler, foreign key / CHECK / UNIQUE kuralları veritabanı seviyesinde
@@ -178,7 +180,12 @@ Tam liste ve canlı deneme: **`/docs`** (Swagger, otomatik üretilir).
 - **Ölçekleme:** canlı bildirim kanalı ve rate limit sayaçları bellekte (tek süreç). Çoklu sunucuda Redis Pub/Sub ve Redis sayaçlarına taşınmalı.
 - Token'lar tarayıcıda `localStorage`'da; üretim için httpOnly cookie değerlendirilebilir.
 - Case 3.5'teki diğer bonuslar henüz yok: arkadaşa kahve ısmarlama (misafir hakkı altyapısı hazır), öneri motoru, push bildirim.
-- Dükkân fotoğrafları (case 3.3) için `image_url` alanı var, seed'de görsel yok.
+
+---
+
+## Görseller
+
+Dükkân fotoğrafları [Unsplash](https://unsplash.com) kaynaklıdır ve [Unsplash Lisansı](https://unsplash.com/license) ile kullanılmıştır; dükkân adları hayalîdir. Ayrıntı: [`frontend/public/images/shops/CREDITS.md`](frontend/public/images/shops/CREDITS.md). Harita: © OpenStreetMap katkıcıları.
 
 ---
 
@@ -206,7 +213,7 @@ kahvecell/
     ├── src/
     │   ├── api/           # axios istemcisi + endpoint fonksiyonları
     │   ├── components/    # layout, harita, QR okuyucu, sipariş kartı, durum ekranları
-    │   ├── pages/         # 9 sayfa (müşteri + dükkân paneli)
+    │   ├── pages/         # 10 sayfa (müşteri, profil, dükkân paneli)
     │   ├── hooks/         # konum, abonelik, canlı olay akışı (SSE)
     │   ├── lib/ store/ styles/
     │   └── router.jsx     # lazy yüklenen sayfalar, rol bazlı yönlendirme
