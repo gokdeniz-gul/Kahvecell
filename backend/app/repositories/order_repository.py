@@ -79,3 +79,6 @@ class OrderRepository:
 
     def shop_ids_owned_by(self, owner_id: str) -> list[str]:
         return list(self.db.scalars(select(Shop.id).where(Shop.owner_id == owner_id)).all())
+
+    def all_shop_ids(self) -> list[str]:
+        return list(self.db.scalars(select(Shop.id)).all())

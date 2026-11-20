@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     auth_rate_limit_per_minute: int = 10  # SMS kodu / token istekleri
     payment_rate_limit_per_minute: int = 10
 
+    # --- Gerçek zamanlı bildirim (SSE) ---
+    sse_keepalive_seconds: float = 15.0  # bağlantı kopmasın diye boş "ping" aralığı
+
     # --- Abonelik ---
     subscription_period_days: int = 30
 

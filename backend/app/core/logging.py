@@ -9,6 +9,7 @@ LOG_FORMAT=text  → geliştirmede okunaklı düz metin
 
 import json
 import logging
+import re
 import time
 import uuid
 from contextvars import ContextVar
@@ -22,6 +23,26 @@ request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 _EXTRA_FIELDS = ("method", "path", "status", "duration_ms", "client_ip")
 
 access_logger = logging.getLogger("app.access")
+
+
+_SECRET_QUERY_PARAM = re.compile(r"((?:^|[?&])(?:token|access_token|refresh_token)=)[^&\s\"]+", re.IGNORECASE)
+
+
+def redact(text: str) -> str:
+    """Adresteki token'ları maskele: /events?token=eyJ... → /events?token=***"""
+    return _SECRET_QUERY_PARAM.sub(r"\1***", text)
+
+
+class RedactSecretsFilter(logging.Filter):
+    """SSE bağlantıları token'ı adreste taşıyor; uvicorn/httpx erişim logları adresi
+    sorgu kısmıyla yazar. Token'ın log dosyalarına düşmemesi için maskeliyoruz."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = redact(record.msg)
+        if isinstance(record.args, tuple):
+            record.args = tuple(redact(arg) if isinstance(arg, str) else arg for arg in record.args)
+        return True
 
 
 class RequestIdFilter(logging.Filter):
@@ -54,9 +75,13 @@ def setup_logging(log_format: str = "text", level: str = "INFO") -> None:
         handler.setFormatter(
             logging.Formatter("%(asctime)s %(levelname)-7s [%(request_id)s] %(name)s: %(message)s")
         )
+    handler.addFilter(RedactSecretsFilter())
     root = logging.getLogger()
     root.handlers = [handler]
     root.setLevel(level)
+    # uvicorn ve httpx kendi handler'larını kullanabildiği için filtreyi logger'ın kendisine de ekle.
+    for name in ("uvicorn.access", "httpx"):
+        logging.getLogger(name).addFilter(RedactSecretsFilter())
 
 
 async def request_context_middleware(request: Request, call_next):
