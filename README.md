@@ -1,93 +1,108 @@
 # ☕ KahveCell
 
-**Dijital kahve abonelik platformu.** Operatör aboneleri aylık paket alır, haritadan yakınındaki anlaşmalı dükkânı bulur, kahvesini özelleştirip sipariş verir ve kasada imzalı QR koduyla teslim alır.
+[![CI](https://github.com/gokdeniz-gul/Kahvecell/actions/workflows/ci.yml/badge.svg)](https://github.com/gokdeniz-gul/Kahvecell/actions/workflows/ci.yml)
+
+**Dijital kahve abonelik platformu.** Operatör aboneleri aylık paket alır, haritadan yakınındaki anlaşmalı dükkânı bulur, kahvesini özelleştirip sipariş verir ve kasada imzalı QR koduyla teslim alır. Dükkân sahibi siparişleri canlı olarak görür, hazırlar ve QR'ı okutarak teslim eder.
 
 > Turkcell Geleceği Yazanlar — Prompt Mühendisliği eğitimi bitirme case çalışması.
 
 | | |
 |---|---|
-| **Backend** | Python 3.12+ · FastAPI · SQLAlchemy 2.0 · SQLite · PyJWT · pytest |
-| **Frontend** | React 19 · Vite · React Router · TanStack Query · Zustand · axios |
+| **Backend** | Python 3.12+ · FastAPI · SQLAlchemy 2.0 · Alembic · PyJWT · pytest |
+| **Veritabanı** | PostgreSQL 17 (Docker) · SQLite (yerel geliştirme) |
+| **Frontend** | React 19 · Vite · React Router · TanStack Query · Zustand · axios · Vitest |
 | **Harita** | Leaflet · OpenStreetMap (API anahtarı gerektirmez) |
+| **Altyapı** | Docker Compose · nginx · GitHub Actions |
 
 ---
 
 ## Özellikler
 
-- **Kayıt / giriş:** GSM numarası + SMS OTP (simülasyon, kod `1234`), JWT access + refresh token, rol bazlı erişim (Müşteri / Dükkân Sahibi / Admin)
-- **Abonelik:** Starter · Premium · Unlimited; satın alma, yükseltme (fark ödenir, anında), düşürme (gelecek dönem), iptal (dönem sonuna kadar geçerli), aylık yenileme
-- **Mobil ödeme simülasyonu:** `4242 4242 4242 4242` başarılı, `4000 0000 0000 0002` reddedilir; tüm denemeler ödeme geçmişine kaydedilir, kartın sadece son 4 hanesi saklanır
-- **Dükkân keşfi:** Haversine ile mesafeye göre sıralama, yarıçap filtresi, Türkçe karakter duyarsız arama, puan ve "şu an açık" filtreleri, harita
-- **Sipariş:** boy / şeker / süt / ek shot özelleştirme, abonelik hakkından atomik düşüm, durum takibi, favori sipariş tekrarı
-- **İmzalı QR:** case 13.2 formatında içerik + HMAC-SHA256 imza; sahte, değiştirilmiş ya da başka dükkâna ait QR reddedilir, teslim sadece QR ile yapılır
-- **Dükkân akışı:** gelen siparişler (Unlimited aboneler öncelikli), Kabul → Hazırlanıyor → Hazır → Teslim
+**Müşteri**
+- **Kayıt / giriş:** GSM + SMS OTP (simülasyon, kod `1234`), profil tamamlama, 30 gün boyunca tekrar kod sorulmaz (refresh token)
+- **Abonelik:** Starter · Premium · Unlimited — satın alma, yükseltme (fark ödenir, anında), düşürme (gelecek dönem), iptal (dönem sonuna kadar geçerli), aylık yenileme
+- **Mobil ödeme simülasyonu:** `4242 4242 4242 4242` başarılı, `4000 0000 0000 0002` reddedilir; ödeme geçmişi
+- **Dükkân keşfi:** harita, mesafeye göre sıralama (Haversine), Türkçe karakter duyarsız arama, "şu an açık" filtresi
+- **Sipariş:** boy / şeker / süt / ek shot, abonelik hakkından atomik düşüm, favori sipariş tekrarı
+- **İmzalı QR + canlı takip:** case 13.2 formatında HMAC-SHA256 imzalı QR; durum değişiklikleri **SSE ile anında** ekrana düşer
+
+**Dükkân sahibi** (`/panel`)
+- Gelen siparişler panosu: Yeni → Kabul → Hazırlanıyor → Hazır (Unlimited aboneler öncelikli), yeni siparişler **canlı** düşer
+- **QR okutma:** kamera, ekran görüntüsü yükleme ya da metin yapıştırma; sahte QR'da uyarı, gerçekse tek tıkla teslim
+- **Günlük analitik:** sipariş sayısı, bekleyen/teslim/iptal, ortalama hazırlama süresi, saatlik yoğunluk, en çok satanlar
 
 ---
 
 ## Hızlı başlangıç
 
-Gereksinimler: **Python 3.12+**, **Node.js 20+**
-
-### 1. Backend
+### Seçenek A — Docker (tek komut)
 
 ```bash
+docker compose up --build
+```
+
+- Uygulama: **http://localhost:8080**
+- Swagger: **http://localhost:8080/docs**
+- PostgreSQL + FastAPI + nginx ayağa kalkar; migration'lar ve demo verisi otomatik yüklenir.
+- Uçtan uca kontrol: `python backend/scripts/smoke_test.py http://localhost:8080`
+
+### Seçenek B — Yerel geliştirme
+
+Gereksinimler: **Python 3.12+**, **Node.js 20+**
+
+```bash
+# 1) Backend
 cd backend
 python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env            # Windows: copy .env.example .env
-python -m scripts.seed          # paketler, 6 İstanbul dükkânı, test hesapları
-uvicorn app.main:app --reload
-```
+python -m scripts.seed          # migration'lar + paketler, 6 İstanbul dükkânı, test hesapları
+uvicorn app.main:app --reload   # http://127.0.0.1:8000  ·  Swagger: /docs
 
-- API: http://127.0.0.1:8000
-- **Swagger dokümantasyonu: http://127.0.0.1:8000/docs**
-
-### 2. Frontend (ayrı bir terminalde)
-
-```bash
+# 2) Frontend (ayrı terminal)
 cd frontend
 npm install
-npm run dev
+npm run dev                     # http://localhost:5173
 ```
-
-- Uygulama: **http://localhost:5173**
-- Geliştirmede `/api` istekleri Vite proxy ile backend'e yönlendirilir; ayrıca ayar gerekmez.
 
 ### Test hesapları
 
 Tüm hesaplarda doğrulama kodu **`1234`**.
 
-| Rol | Telefon | Not |
+| Rol | Telefon | Ne yapabilir |
 |---|---|---|
-| Müşteri | `5551234567` | Aktif Starter aboneliği var |
-| Dükkân sahibi | `5559876543` | 6 dükkânın sahibi; sipariş durumunu günceller |
-| Admin | `5550000000` | Kullanıcı listesi, rol değiştirme |
+| Müşteri | `5551234567` | Aktif Starter aboneliğiyle sipariş verir |
+| Dükkân sahibi | `5559876543` | 6 dükkânın paneli: siparişleri yönetir, QR okutur, analitiği görür |
+| Admin | `5550000000` | Kullanıcı listesi, rol değiştirme, tüm dükkânların paneli |
+
+> **Demo ipucu:** Müşteriyi normal pencerede, dükkân sahibini gizli pencerede açın. Müşteri QR ekranındaki "QR içeriğini kopyala" ile kopyalayıp dükkân panelinde "QR okut → Metin yapıştır" ile teslim edebilirsiniz; durum değişiklikleri iki pencerede de anında görünür.
 
 ### Testler
 
 ```bash
-cd backend && pytest          # 142 test
-cd frontend && npm run lint && npm run build
+cd backend && pytest                                  # 168 test (SQLite)
+cd frontend && npm test && npm run lint && npm run build   # 32 test
 ```
+
+CI'da backend testleri **SQLite ve PostgreSQL** üzerinde, ardından Docker Compose ile tüm sistem ayağa kaldırılıp uçtan uca duman testi koşar.
 
 ---
 
 ## Mimari
 
 ```
-┌──────────────┐  /api/v1 (JSON)  ┌──────────────────────────────────────────┐
-│ React (Vite) │ ───────────────► │ FastAPI                                  │
-│  Router      │                  │  api/v1 (router)   → isteği al, doğrula  │
-│  React Query │ ◄─────────────── │  services          → iş kuralları        │
-│  Zustand     │ {success,data,   │  repositories      → veritabanı erişimi  │
-└──────────────┘  error}          │  models (SQLAlchemy) ─► SQLite           │
-                                  └──────────────────────────────────────────┘
+                    ┌────────────────────── Docker Compose ──────────────────────┐
+┌──────────────┐    │ ┌────────────┐  /api   ┌──────────────────────┐            │
+│ Tarayıcı     │───►│ │ nginx      │───────► │ FastAPI              │   ┌──────┐ │
+│ React (SPA)  │◄───│ │ statik dosya│◄─SSE─── │  api/v1  → router    │──►│ Post │ │
+└──────────────┘    │ └────────────┘         │  services → kurallar │   │ greSQL│ │
+                    │                         │  repositories → SQL  │   └──────┘ │
+                    │                         └──────────────────────┘            │
+                    └─────────────────────────────────────────────────────────────┘
 ```
 
-**Katmanlı yapı:** endpoint'ler HTTP ile, servisler iş kurallarıyla, repository'ler veritabanıyla ilgilenir. Servisler HTTP bilmez; `NotFoundError` gibi anlamlı hatalar fırlatır, global handler bunları standart cevaba çevirir.
-
-**Standart cevap formatı** (tüm endpoint'ler):
+**Katmanlı yapı:** endpoint'ler HTTP ile, servisler iş kurallarıyla, repository'ler veritabanıyla ilgilenir. Servisler HTTP bilmez; `NotFoundError` gibi anlamlı hatalar fırlatır, global handler bunları standart cevaba çevirir:
 
 ```json
 { "success": false, "data": null, "error": { "code": "NO_CREDITS_LEFT", "message": "Bu ayki kahve hakkınız bitti...", "details": {} } }
@@ -97,29 +112,36 @@ cd frontend && npm run lint && npm run build
 
 `users` · `plans` · `subscriptions` · `payments` · `shops` · `products` · `orders` · `order_items` · `otp_requests` · `refresh_tokens`
 
-- UUID primary key'ler (QR içeriği UUID ister; sıralı ID tahmin edilebilir)
-- Foreign key, CHECK ve UNIQUE kuralları veritabanı seviyesinde; SQLite'ta foreign key zorlaması açık
-- Para **kuruş** cinsinden tam sayı (float yuvarlama hatası yok), tarihler UTC
+- Şema **Alembic migration'larıyla** sürümlenir (`backend/migrations/`); uygulama açılırken `upgrade head` otomatik çalışır. Bir test, migration'ların modellerle birebir aynı olduğunu doğrular.
+- UUID primary key'ler, foreign key / CHECK / UNIQUE kuralları veritabanı seviyesinde
+- Para **kuruş** cinsinden tam sayı, tarihler UTC
 - Kullanıcı başına tek geçerli abonelik (partial unique index)
-- Sipariş anındaki fiyat `order_items`'a kopyalanır; ürün fiyatı değişse de eski fiş değişmez
+- Sipariş anındaki fiyat `order_items`'a kopyalanır
+
+```bash
+alembic revision --autogenerate -m "aciklama"   # model değişikliğinden yeni migration
+alembic upgrade head                            # şemayı güncelle
+```
 
 ### Önemli kararlar
 
 | Konu | Karar | Neden |
 |---|---|---|
-| Ödeme akışı | Önce `POST /payments/process` → `transaction_id` → `POST /subscriptions` | Case 12: transaction ID ile eşleştirme; ödeme tek kullanımlık ve kullanıcı/paket/tutara göre doğrulanır |
-| Tutar | Sunucu hesaplar (yeni abonelikte tam fiyat, yükseltmede fark) | İstemci tutarı değiştiremez |
-| Kahve hakkı düşümü | Tek SQL `UPDATE ... WHERE remaining_credits > 0` | Çift tıklamada bile hak iki kez harcanamaz (race condition yok) |
-| Yakınlık sorgusu | Enlem/boylam index'iyle kutu ön elemesi + Haversine | SQLite'ta spatial index yok; PostgreSQL'e geçilirse PostGIS |
-| Refresh token | Rastgele, veritabanında SHA-256 özeti, tek kullanımlık (rotation) | Çalınan eski token tekrar kullanılırsa kullanıcının tüm oturumları kapanır |
-| QR imzası | HMAC-SHA256, JWT'den ayrı anahtar | Anahtarı bilmeyen geçerli QR üretemez; bir anahtar sızarsa diğeri güvende |
-| Saat | Türkiye sabit UTC+3 | 2016'dan beri yaz saati yok; Windows'ta tz veritabanı gerektirmez |
+| Ödeme akışı | `POST /payments/process` → `transaction_id` → `POST /subscriptions` | Case 12: transaction ID eşleştirmesi; ödeme tek kullanımlık, kullanıcı/paket/tutara göre doğrulanır |
+| Tutar | Sunucu hesaplar | İstemci tutarı değiştiremez |
+| Kahve hakkı | Tek SQL `UPDATE ... WHERE remaining_credits > 0` | Çift tıklamada bile hak iki kez harcanamaz |
+| Yakınlık | Enlem/boylam index'iyle kutu ön elemesi + Haversine | SQLite'ta spatial index yok; PostGIS'e geçiş kolay |
+| Refresh token | Rastgele, SHA-256 özeti saklanır, tek kullanımlık | Çalınan eski token kullanılırsa tüm oturumlar kapanır |
+| QR imzası | HMAC-SHA256, JWT'den ayrı anahtar | Anahtarı bilmeyen geçerli QR üretemez |
+| Teslim | Sadece QR okutularak | Case 7.3; dükkân "teslim edildi"yi elle işaretleyemez |
+| Canlı takip | SSE (Server-Sent Events) | Tek yönlü bildirim için WebSocket'ten basit; proxy dostu, otomatik yeniden bağlanır |
+| Frontend verisi | Sunucu verisi React Query'de, oturum Zustand'da | Önbellek, yükleniyor/hata durumları ve yeniden deneme hazır gelir |
 
 ---
 
 ## API özeti
 
-Tam liste ve canlı deneme için: **`/docs`** (Swagger, otomatik üretilir).
+Tam liste ve canlı deneme: **`/docs`** (Swagger, otomatik üretilir).
 
 | Grup | Endpoint'ler |
 |---|---|
@@ -128,31 +150,35 @@ Tam liste ve canlı deneme için: **`/docs`** (Swagger, otomatik üretilir).
 | Abonelik | `GET /subscriptions/plans` · `POST /subscriptions` · `GET` / `PATCH` / `DELETE /subscriptions/me` |
 | Ödeme | `POST /payments/process` · `GET /payments/me` |
 | Dükkân | `GET /shops?lat=&lng=&radius_km=&q=&open_now=` · `GET /shops/{id}` · `GET /shops/{id}/menu` |
-| Sipariş | `POST /orders` · `GET /orders/{id}` · `GET /orders/history` · `GET /orders/incoming` · `PATCH /orders/{id}/status` · `POST /orders/verify-qr` · `POST /orders/{id}/reorder` |
+| Sipariş | `POST /orders` · `GET /orders/{id}` · `GET /orders/history` · `POST /orders/{id}/reorder` |
+| Dükkân paneli | `GET /orders/incoming` · `PATCH /orders/{id}/status` · `POST /orders/verify-qr` · `GET /orders/stats` |
+| Canlı (SSE) | `GET /orders/{id}/events` · `GET /orders/incoming/events` |
 
 ---
 
 ## Güvenlik
 
-- Refresh token ve OTP kodları veritabanında **özet (hash)** olarak saklanır; kart numarası hiç saklanmaz ve loglanmaz
+- Refresh token ve OTP kodları **özet (hash)** olarak saklanır; kart numarası hiç saklanmaz ve loglanmaz
 - `/auth/*` ve `/payments/process` için **IP başına dakikalık istek sınırı** (429 + `Retry-After`)
-- Güvenlik başlıkları (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`), API cevaplarında `Cache-Control: no-store`
-- CORS sadece tanımlı frontend adreslerine açık
-- `ENVIRONMENT=production` iken varsayılan, yer tutucu, kısa ya da birbirinin aynı JWT/QR anahtarlarıyla **uygulama açılmaz**
-- Doğrulama hatalarında gönderilen değer cevaba geri yazılmaz (örn. kart numarası)
+- Güvenlik başlıkları, API cevaplarında `Cache-Control: no-store`, CORS sadece tanımlı adreslere
+- `ENVIRONMENT=production` iken varsayılan / yer tutucu / kısa / aynı JWT ve QR anahtarlarıyla **uygulama açılmaz**
+- SSE bağlantısındaki token **loglarda maskelenir** (`?token=***`)
+- Her isteğin bir kimliği (`X-Request-ID`) vardır; 500 hatalarında kullanıcıya sadece bu kimlik döner, ayrıntı loglarda kalır
+- CI'da bağımlılıklar `npm audit` / `pip-audit` ile tarandı, bilinen açık yok
 
 > ⚠️ `config.py` içindeki varsayılan anahtarlar **yalnızca geliştirme** içindir. Üretimde `.env` ile değiştirin:
 > `python -c "import secrets; print(secrets.token_urlsafe(48))"`
+
+**Loglama:** `LOG_FORMAT=json` ile her satır bir JSON nesnesi (`request_id`, `method`, `path`, `status`, `duration_ms`); Docker'da varsayılan olarak açık.
 
 ---
 
 ## Bilinen sınırlar ve yol haritası
 
-- **Migration:** şema şimdilik açılışta `create_all` ile oluşuyor; şema değişince `kahvecell.db` silinip seed tekrar çalıştırılmalı. Sıradaki adım: Alembic.
-- **Dükkân sahibi paneli** henüz frontend'de yok; sipariş durumu ve QR doğrulama Swagger'dan yapılıyor. QR ekranı durumu 5 sn'de bir yenileyerek takip ediyor; WebSocket/SSE ile anlık bildirim planlandı.
+- **Ölçekleme:** canlı bildirim kanalı ve rate limit sayaçları bellekte (tek süreç). Çoklu sunucuda Redis Pub/Sub ve Redis sayaçlarına taşınmalı.
 - Token'lar tarayıcıda `localStorage`'da; üretim için httpOnly cookie değerlendirilebilir.
-- Rate limit sayaçları bellekte (tek sunucu); çoklu sunucuda Redis'e taşınmalı.
-- Docker Compose ve GitHub Actions (CI) eklenmedi.
+- Case 3.5'teki diğer bonuslar henüz yok: arkadaşa kahve ısmarlama (misafir hakkı altyapısı hazır), öneri motoru, push bildirim.
+- Dükkân fotoğrafları (case 3.3) için `image_url` alanı var, seed'de görsel yok.
 
 ---
 
@@ -160,22 +186,30 @@ Tam liste ve canlı deneme için: **`/docs`** (Swagger, otomatik üretilir).
 
 ```
 kahvecell/
+├── docker-compose.yml
+├── .github/workflows/ci.yml
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/        # endpoint'ler (router)
-│   │   ├── core/          # ayarlar, veritabanı, güvenlik, QR, hata yönetimi, rate limit
+│   │   ├── core/          # ayarlar, veritabanı, güvenlik, QR, hata yönetimi, rate limit,
+│   │   │                  # loglama, SSE olay kanalı, migration çalıştırıcı
 │   │   ├── models/        # SQLAlchemy tabloları
 │   │   ├── schemas/       # Pydantic istek/cevap şemaları
 │   │   ├── services/      # iş kuralları
 │   │   ├── repositories/  # veritabanı sorguları
 │   │   └── utils/         # Haversine, Türkçe arama normalizasyonu
-│   ├── scripts/seed.py    # örnek veri
-│   └── tests/             # pytest
+│   ├── migrations/        # Alembic
+│   ├── scripts/           # seed.py (örnek veri), smoke_test.py (uçtan uca kontrol)
+│   ├── tests/             # pytest
+│   └── Dockerfile
 └── frontend/
-    └── src/
-        ├── api/           # axios istemcisi + endpoint fonksiyonları
-        ├── components/    # layout, harita, durum ekranları
-        ├── pages/         # 8 sayfa
-        ├── hooks/ store/ lib/ styles/
-        └── router.jsx
+    ├── src/
+    │   ├── api/           # axios istemcisi + endpoint fonksiyonları
+    │   ├── components/    # layout, harita, QR okuyucu, sipariş kartı, durum ekranları
+    │   ├── pages/         # 9 sayfa (müşteri + dükkân paneli)
+    │   ├── hooks/         # konum, abonelik, canlı olay akışı (SSE)
+    │   ├── lib/ store/ styles/
+    │   └── router.jsx     # lazy yüklenen sayfalar, rol bazlı yönlendirme
+    ├── nginx.conf
+    └── Dockerfile
 ```
