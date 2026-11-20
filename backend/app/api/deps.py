@@ -1,6 +1,7 @@
 """Endpoint'lerin ortak bağımlılıkları: veritabanı oturumu, giriş yapmış kullanıcı, rol kontrolü."""
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends
@@ -51,5 +52,14 @@ def require_roles(*allowed_roles: UserRole) -> Callable[[User], User]:
 
 
 AdminUser = Annotated[User, Depends(require_roles(UserRole.ADMIN))]
+ShopStaffUser = Annotated[User, Depends(require_roles(UserRole.SHOP_OWNER, UserRole.ADMIN))]
 # Abonelik ve ödeme işlemleri sadece müşterilere açık.
 CustomerUser = Annotated[User, Depends(require_roles(UserRole.CUSTOMER))]
+
+
+def get_clock() -> Callable[[], datetime]:
+    """Şu anki zaman. Testlerde "saat 12:00" gibi sabit bir saatle değiştirilebiliyor."""
+    return lambda: datetime.now(UTC)
+
+
+Clock = Annotated[Callable[[], datetime], Depends(get_clock)]

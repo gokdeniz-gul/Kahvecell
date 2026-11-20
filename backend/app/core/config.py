@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     otp_expire_minutes: int = 5
     otp_max_attempts: int = 5
 
+    # --- QR kod imzası (HMAC-SHA256) ---
+    # JWT anahtarından ayrı: biri sızarsa diğeri güvende kalır.
+    qr_signing_secret: str = "dev-qr-secret-sadece-gelistirme-icin-degistir"
+
     # --- Abonelik ---
     subscription_period_days: int = 30
 

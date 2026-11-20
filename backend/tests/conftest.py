@@ -10,6 +10,7 @@ os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-en-az-32-karakter-uzunlukta"
 
 from collections.abc import Iterator  # noqa: E402
+from datetime import datetime  # noqa: E402
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -19,8 +20,11 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.core.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Plan, User  # noqa: E402
+from app.api.deps import get_clock  # noqa: E402
+from app.models import Plan, Product, Shop, User  # noqa: E402
 from app.models.enums import PlanType, UserRole  # noqa: E402
+from app.services.shop_service import ISTANBUL_TZ  # noqa: E402
+from scripts.seed import SHOPS  # noqa: E402
 
 # StaticPool: bellekteki veritabanı tek bağlantıda yaşar, böylece tüm istekler aynı veriyi görür.
 test_engine = create_engine(
@@ -82,6 +86,35 @@ def set_role(db: Session):
 @pytest.fixture
 def make_admin(set_role):
     return lambda user_id: set_role(user_id, UserRole.ADMIN)
+
+
+@pytest.fixture
+def shops(db: Session) -> dict[str, Shop]:
+    """Seed betiğindeki gerçek İstanbul dükkânları ve menüleri (ada göre sözlük)."""
+    created = {}
+    for data in SHOPS:
+        shop = Shop(**{k: v for k, v in data.items() if k != "products"})
+        shop.products = [
+            Product(name=name, description=desc, category=cat, price_kurus=round(price * 100))
+            for name, desc, cat, price in data["products"]
+        ]
+        db.add(shop)
+        created[shop.name] = shop
+    db.commit()
+    return created
+
+
+@pytest.fixture
+def fixed_clock():
+    """Endpoint'lerin "şu an"ını sabitler. Varsayılan: İstanbul saatiyle 12:00 (tüm dükkânlar açık)."""
+    state = {"now": datetime(2026, 1, 15, 12, 0, tzinfo=ISTANBUL_TZ)}
+
+    def _set(now: datetime) -> None:
+        state["now"] = now
+
+    app.dependency_overrides[get_clock] = lambda: (lambda: state["now"])
+    yield _set
+    app.dependency_overrides.pop(get_clock, None)
 
 
 @pytest.fixture
